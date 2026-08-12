@@ -1,0 +1,160 @@
+.classroom-detail-page {
+  min-height: 100svh;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(20, 120, 92, 0.08),
+      transparent 28%
+    ),
+    linear-gradient(180deg, #f8fbfa 0%, #f3f7f5 100%);
+}
+
+.classroom-detail-main {
+  width: min(1126px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 24px 0 40px;
+}
+
+.back-button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #14785c;
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  margin: 0 0 16px;
+  cursor: pointer;
+}
+
+.classroom-summary {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 30px;
+  border: 1px solid #e3e9e6;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 1px 3px rgba(16, 24, 21, 0.04),
+    0 14px 40px rgba(16, 24, 21, 0.08);
+}
+
+.classroom-summary-copy {
+  min-width: 0;
+}
+
+.classroom-kicker {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6b7573;
+}
+
+.classroom-summary h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1.05;
+}
+
+.classroom-subtitle {
+  margin-top: 10px;
+  font-size: 15px;
+  color: #6b7573;
+}
+
+.invitation-code {
+  flex-shrink: 0;
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #14785c;
+  color: #ffffff;
+  min-width: 168px;
+}
+
+.invitation-code span {
+  font-size: 11px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  opacity: 0.82;
+}
+
+.invitation-code strong {
+  font-size: 28px;
+  letter-spacing: 0.09em;
+  line-height: 1;
+}
+
+.classroom-tab-list {
+  display: flex;
+  gap: 10px;
+  margin: 18px 0 22px;
+  padding-bottom: 12px;
+  overflow-x: auto;
+}
+
+.classroom-tab-list button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #6b7573;
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 18px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.classroom-tab-list button:hover {
+  color: #16181b;
+  border-color: #d4dcd9;
+  background: #ffffff;
+}
+
+.classroom-tab-list button.active {
+  background: #14785c;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(20, 120, 92, 0.18);
+}
+
+.classroom-panel {
+  min-width: 0;
+}
+
+.classroom-placeholder {
+  border: 1px dashed #cfd8d4;
+  border-radius: 18px;
+  padding: 48px 24px;
+  text-align: center;
+  color: #6b7573;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 760px) {
+  .classroom-detail-main {
+    width: min(100% - 24px, 1126px);
+    padding-top: 16px;
+  }
+
+  .classroom-summary {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 22px 18px;
+  }
+
+  .invitation-code {
+    width: 100%;
+  }
+}

@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
-import './AttendanceTab.css';
+import React, { useState } from "react";
+import "./AttendanceTab.css";
 
 const AttendanceIcon = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <path
       d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
       stroke="currentColor"
@@ -13,10 +18,20 @@ const AttendanceIcon = ({ className }) => (
   </svg>
 );
 
-export default function AttendanceTab({ onTakeAttendance }) {
-  const [checkInName, setCheckInName] = useState('');
-  const tabs = ['Materials', 'Live class', 'Assignments', 'Attendance', 'Quizzes', 'Members'];
-  const [activeTab, setActiveTab] = useState('Attendance');
+export default function AttendanceTab({
+  onTakeAttendance,
+  hideNavigation = false,
+}) {
+  const [checkInName, setCheckInName] = useState("");
+  const tabs = [
+    "Materials",
+    "Live class",
+    "Assignments",
+    "Attendance",
+    "Quizzes",
+    "Members",
+  ];
+  const [activeTab, setActiveTab] = useState("Attendance");
 
   const handleInputChange = (e) => {
     setCheckInName(e.target.value);
@@ -27,24 +42,26 @@ export default function AttendanceTab({ onTakeAttendance }) {
     if (onTakeAttendance) {
       onTakeAttendance(checkInName);
     } else {
-      alert(`Taking attendance for: ${checkInName || 'Unnamed Check-in'}`);
+      alert(`Taking attendance for: ${checkInName || "Unnamed Check-in"}`);
     }
   };
 
   return (
     <div className="classroom-detail-container">
-      {/* Tab Navigation */}
-      <div className="classroom-tabs-bar">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            className={`classroom-tab-pill ${tab === activeTab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      {!hideNavigation && (
+        <div className="classroom-tabs-bar">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className={`classroom-tab-pill ${tab === activeTab ? "active" : ""}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Attendance Control Panel */}
       <div className="attendance-control-card">
