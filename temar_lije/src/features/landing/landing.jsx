@@ -1,18 +1,40 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import './landing.css'; 
 import temarLijeLogo from '../../assets/temar-lije-logo.png';
+import heroImage from '../../assets/hero-classroom.png';
 
 export default function LandingPage({ 
   onStartTeaching = () => {}, 
   onJoinClass = () => {}, 
-  onSignIn = () => {} 
+  onSignIn = () => {},
+  onEscapePress 
 }) {
+
+  // ESC Key Listener
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        if (onEscapePress) {
+          onEscapePress();
+        } else {
+          onSignIn();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onEscapePress, onSignIn]);
+
   return (
     <div className="landing-container">
       {/* Navbar Header */}
       <header className="landing-header">
         <div className="landing-logo-brand">
-          <img src={temarLijeLogo} alt="Temar Lije Logo" className="landing-brand-img" />
+          <img src={temarLijeLogo} alt="Temar Lije Logo" className="header-logo-img" />
           <span className="landing-brand-title">Temar Lije</span>
         </div>
 
@@ -48,14 +70,13 @@ export default function LandingPage({
           </div>
         </div>
 
+        {/* Hero Image Section */}
         <div className="hero-media">
-          <div className="logo-card-wrapper">
-            <img 
-              src={temarLijeLogo} 
-              alt="Temar Lije Platform Logo" 
-              className="hero-logo-img" 
-            />
-          </div>
+          <img 
+            src={heroImage} 
+            alt="Classroom learning" 
+            className="hero-classroom-img" 
+          />
         </div>
       </main>
 
@@ -66,7 +87,7 @@ export default function LandingPage({
         <div className="features-grid">
           {/* Card 1 */}
           <div className="feature-card">
-            <div className="feature-icon">🎓</div>
+            <div className="feature-icon-badge">🎓</div>
             <h3 className="feature-card-title">Classrooms in seconds</h3>
             <p className="feature-card-desc">
               Create a class, share a six-character code and watch students join themselves.
@@ -75,7 +96,7 @@ export default function LandingPage({
 
           {/* Card 2 */}
           <div className="feature-card">
-            <div className="feature-icon">📄</div>
+            <div className="feature-icon-badge">📄</div>
             <h3 className="feature-card-title">Materials, organised</h3>
             <p className="feature-card-desc">
               Upload slides, PDFs and worksheets. Students only see the classes they belong to.
@@ -84,7 +105,7 @@ export default function LandingPage({
 
           {/* Card 3 */}
           <div className="feature-card">
-            <div className="feature-icon">📹</div>
+            <div className="feature-icon-badge">📹</div>
             <h3 className="feature-card-title">Live teaching built in</h3>
             <p className="feature-card-desc">
               Every classroom has its own video room with screen sharing and chat.
@@ -93,7 +114,7 @@ export default function LandingPage({
 
           {/* Card 4 */}
           <div className="feature-card">
-            <div className="feature-icon">✨</div>
+            <div className="feature-icon-badge">✨</div>
             <h3 className="feature-card-title">AI on your side</h3>
             <p className="feature-card-desc">
               Lesson planning, quiz generation and analytics arrive on this same foundation.
@@ -138,7 +159,6 @@ export default function LandingPage({
                 <li><a href="#features">Features</a></li>
                 <li><a href="#copilot">AI Co-pilot</a></li>
                 <li><a href="#pricing">Pricing</a></li>
-                <li><a href="#changelog">Changelog</a></li>
               </ul>
             </div>
 
@@ -147,18 +167,6 @@ export default function LandingPage({
               <ul>
                 <li><a href="#guides">Teacher Guides</a></li>
                 <li><a href="#help">Help Center</a></li>
-                <li><a href="#community">Community</a></li>
-                <li><a href="#security">Security</a></li>
-              </ul>
-            </div>
-
-            <div className="footer-column">
-              <h4>Company</h4>
-              <ul>
-                <li><a href="#about">About us</a></li>
-                <li><a href="#blog">Blog</a></li>
-                <li><a href="#careers">Careers</a></li>
-                <li><a href="#contact">Contact</a></li>
               </ul>
             </div>
           </div>
@@ -166,11 +174,6 @@ export default function LandingPage({
 
         <div className="footer-bottom">
           <p>© 2026 Temar Lije Inc. All rights reserved.</p>
-          <div className="footer-legal">
-            <a href="#privacy">Privacy Policy</a>
-            <a href="#terms">Terms of Service</a>
-            <a href="#compliance">FERPA & COPPA Compliance</a>
-          </div>
         </div>
       </footer>
     </div>

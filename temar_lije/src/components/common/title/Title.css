@@ -1,9 +1,145 @@
+.title-wrapper {
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', 'Roboto', sans-serif;
+  background-color: #ffffff;
+}
+
+/* --- Top Navigation Bar --- */
+.app-top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #f1f3f5;
+  background-color: #ffffff;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-icon {
+  color: #10b981; /* green */
+  background-color: #d1fae5; /* light green bg */
+  border-radius: 50%;
+  padding: 0.25rem;
+  width: 28px;
+  height: 28px;
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #1f2937;
+}
+
+.primary-links {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.nav-link {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #9ca3af;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: #4b5563;
+}
+
+.nav-link.active {
+  color: #1f2937;
+}
+
+.nav-icon {
+  color: inherit;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: #d1fae5;
+  color: #10b981;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.username {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.1;
+}
+
+.user-badge {
+  font-size: 0.65rem;
+  color: #059669;
+  background-color: #d1fae5;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  font-weight: 600;
+  margin-top: 0.2rem;
+  display: inline-block;
+  width: fit-content;
+}
+
+.logout-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s ease;
+}
+
+.logout-btn:hover {
+  color: #4b5563;
+}
+
+/* --- Course Header Area --- */
 .course-header-container {
   display: flex;
   flex-direction: column;
   padding: 1.5rem 2rem;
-  background-color: #ffffff;
-  font-family: 'Inter', 'Roboto', sans-serif; /* Fallback to standard clean fonts */
 }
 
 .course-header-top {
