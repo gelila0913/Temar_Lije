@@ -45,4 +45,11 @@ Most existing Learning Management Systems (LMS) rely heavily on continuous inter
 
 ## 👨‍💻 Developer
 
-**Full Name:** *Your Full Name*
+| # | Name | CTC |
+|---|---|---|
+| 1 | Fanuel Goitom | CTC-1673-26 |
+| 2 | Fikrte Gebretsadkan | CTC-5776-26 |
+| 3 | Fiema Yaregal Belie | CTC-2506-26 |
+| 4 | Fuad Aman Gebi | CTC-3534-26 |
+| 5 | Gelila Sintayehu Demeke | CTC-5853-26 |
+| 6 | Gemechu Teso Delesa | CTC-246-26 |

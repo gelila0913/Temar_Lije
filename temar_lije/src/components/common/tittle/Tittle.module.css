@@ -1,0 +1,87 @@
+.headerContainer {
+  width: 100%;
+  padding: 24px 32px 0 32px;
+  background-color: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+/* Back Link Button */
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #5f6368;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 16px;
+  transition: color 0.15s ease;
+}
+
+.backButton:hover {
+  color: #202124;
+}
+
+.backIcon {
+  font-size: 16px;
+}
+
+/* Classroom Title & Subtitle */
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0 0 24px 0;
+}
+
+/* Rounded Pill Tabs Navigation Wrapper */
+.tabsContainer {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f0f4f3;
+  padding: 4px;
+  border-radius: 20px;
+  gap: 2px;
+}
+
+/* Tab Button Base Style */
+.tabButton {
+  background: transparent;
+  border: none;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #5f6368;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  outline: none;
+  white-space: nowrap;
+}
+
+.tabButton:hover {
+  color: #0f172a;
+}
+
+/* Active Tab Style (White Pill with Shadow) */
+.tabButton.activeTab {
+  background-color: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08);
+}

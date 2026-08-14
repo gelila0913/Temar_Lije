@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import './landing.css'; 
 import temarLijeLogo from '../../assets/temar-lije-logo.png';
-import heroImage from '../../assets/hero-classroom.png';
 
 export default function LandingPage({ 
   onStartTeaching = () => {}, 
@@ -70,14 +69,7 @@ export default function LandingPage({
           </div>
         </div>
 
-        {/* Hero Image Section */}
-        <div className="hero-media">
-          <img 
-            src={heroImage} 
-            alt="Classroom learning" 
-            className="hero-classroom-img" 
-          />
-        </div>
+       
       </main>
 
       {/* Feature Section: Built for real teaching days */}
