@@ -486,3 +486,111 @@
     display: none;
   }
 }
+
+/* Global Dark Mode rules for Members Tab */
+.members-page-layout.dark {
+  background-color: #121824;
+  color: #f8fafc;
+}
+
+.members-page-layout.dark .sidebar-container {
+  background-color: #1e293b;
+  border-right: 1px solid #334155;
+}
+
+.members-page-layout.dark .sidebar-profile {
+  border-bottom: 1px solid #334155;
+}
+
+.members-page-layout.dark .user-name-text {
+  color: #f8fafc;
+}
+
+.members-page-layout.dark .search-input-wrapper {
+  background-color: #121824;
+  border: 1px solid #334155;
+}
+
+.members-page-layout.dark .search-input-wrapper input {
+  color: #f8fafc;
+}
+
+.members-page-layout.dark .sidebar-item:hover {
+  background-color: #334155;
+}
+
+.members-page-layout.dark .sidebar-item.active {
+  background-color: #115e59;
+}
+
+.members-page-layout.dark .item-title {
+  color: #f8fafc;
+}
+
+.members-page-layout.dark .item-subtitle {
+  color: #94a3b8;
+}
+
+.members-page-layout.dark .main-classroom-area {
+  background-color: #121824;
+}
+
+.members-page-layout.dark .classroom-title-text {
+  color: #f8fafc;
+}
+
+.members-page-layout.dark .classroom-subtitle-text {
+  color: #94a3b8;
+}
+
+.members-page-layout.dark .classroom-tabs-navigation {
+  border-bottom: 1px solid #334155;
+}
+
+.members-page-layout.dark .nav-tab-button:hover {
+  color: #f8fafc;
+}
+
+.members-page-layout.dark .nav-tab-button.active {
+  color: #34d399;
+  border-bottom-color: #34d399;
+}
+
+.members-page-layout.dark .classroom-tab-content {
+  background-color: #121824;
+}
+
+.members-page-layout.dark .study-group-banner {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+}
+
+.members-page-layout.dark .banner-title {
+  color: #f8fafc;
+}
+
+.members-page-layout.dark .banner-desc {
+  color: #94a3b8;
+}
+
+.members-page-layout.dark .member-card-row {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+.members-page-layout.dark .member-name-text {
+  color: #f8fafc;
+}
+
+.members-page-layout.dark .member-status-text {
+  color: #94a3b8;
+}
+
+.members-page-layout.dark .member-card-row.offline .member-name-text {
+  color: #64748b;
+}
+
+.members-page-layout.dark .you-badge-label {
+  color: #64748b;
+}
