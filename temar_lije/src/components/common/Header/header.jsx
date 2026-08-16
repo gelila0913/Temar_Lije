@@ -1,7 +1,7 @@
 import React from 'react';
 import './header.css';
 import logo from '../../../assets/classmind-logo.png';
-import { LayoutGrid, Sparkles, LogOut } from 'lucide-react';
+import { LayoutGrid, Sparkles, LogOut, MessageSquare } from 'lucide-react';
 
 export default function Header({
     userName = "Gelila Sintayehu",

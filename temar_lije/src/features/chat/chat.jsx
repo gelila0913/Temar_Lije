@@ -17,11 +17,26 @@ const USER_PROFILES = {
     'ta': { name: 'Tigist Alemu', initials: 'TA', avatarBg: '#a855f7', online: true }
 };
 
-function Chat() {
-    // Theme state: defaults to dark mode to match the primary screenshot
-    const [darkMode, setDarkMode] = useState(true);
+function Chat({
+    hideSidebar = false,
+    activeId: propActiveId,
+    setActiveId: propSetActiveId,
+    showCreateGroupDirectly = false,
+    onCloseCreateGroupDirectly,
+    studyGroups: propStudyGroups,
+    setStudyGroups: propSetStudyGroups,
+    darkMode: propDarkMode,
+    setDarkMode: propSetDarkMode
+}) {
+    const [localDarkMode, setLocalDarkMode] = useState(false);
+    const darkMode = propDarkMode !== undefined ? propDarkMode : localDarkMode;
+    const setDarkMode = propSetDarkMode !== undefined ? propSetDarkMode : setLocalDarkMode;
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeId, setActiveId] = useState('widget-kings');
+    
+    const [localActiveId, setLocalActiveId] = useState('widget-kings');
+    const activeId = propActiveId !== undefined ? propActiveId : localActiveId;
+    const setActiveId = propSetActiveId !== undefined ? propSetActiveId : setLocalActiveId;
+
     const [inputValue, setInputValue] = useState('');
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -81,11 +96,13 @@ function Chat() {
     ]);
 
     // Mock list of Study Groups
-    const [studyGroups, setStudyGroups] = useState([
+    const [localStudyGroups, setLocalStudyGroups] = useState([
         { id: 'widget-kings', name: 'Widget Kings 👑', subtitle: 'Abebe: Deadline Sunday midni...', isClassroom: false, time: '2:54 PM', members: ['gs', 'at', 'yb'], icon: '🦋', color: '#6366f1' },
         { id: 'vd', name: 'vd', subtitle: 'No messages yet', isClassroom: false, time: '', members: ['gs'], icon: '💻', color: '#0d9488' },
         { id: 'packages', name: 'packages', subtitle: 'No messages yet', isClassroom: false, time: '', members: ['gs'], icon: '📚', color: '#06b6d4' }
     ]);
+    const studyGroups = propStudyGroups !== undefined ? propStudyGroups : localStudyGroups;
+    const setStudyGroups = propSetStudyGroups !== undefined ? propSetStudyGroups : setLocalStudyGroups;
 
     // Messages log by group/classroom ID
     const [messagesByGroup, setMessagesByGroup] = useState({
@@ -286,6 +303,13 @@ function Chat() {
         window.addEventListener('click', handleOutsideClick);
         return () => window.removeEventListener('click', handleOutsideClick);
     }, [contextMenu.visible]);
+
+    // Handle group creation launch triggered externally
+    useEffect(() => {
+        if (showCreateGroupDirectly) {
+            setShowAddModal({ open: true, type: 'group' });
+        }
+    }, [showCreateGroupDirectly]);
 
     // Helper to format bytes
     const formatBytes = (bytes, decimals = 1) => {
@@ -1005,7 +1029,8 @@ function Chat() {
             )}
 
             {/* Sidebar Panel */}
-            <div className={`chat-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
+            {!hideSidebar && (
+                <div className={`chat-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
 
                 {/* Profile Card */}
                 <div className="profile-card">
@@ -1234,6 +1259,7 @@ function Chat() {
 
                 </div>
             </div>
+            )}
 
             {/* Main Chat Pane */}
             <div className="chat-pane">
@@ -1241,14 +1267,36 @@ function Chat() {
                 {/* Chat Header */}
                 <div className="chat-header">
                     <div className="chat-header-info">
-                        <button
-                            className="mobile-sidebar-toggle"
-                            onClick={() => setMobileSidebarOpen(true)}
-                            aria-label="Open Sidebar"
-                            title="Open Sidebar"
-                        >
-                            <Menu size={20} />
-                        </button>
+                        {!hideSidebar && (
+                            <button
+                                className="mobile-sidebar-toggle"
+                                onClick={() => setMobileSidebarOpen(true)}
+                                aria-label="Open Sidebar"
+                                title="Open Sidebar"
+                            >
+                                <Menu size={20} />
+                            </button>
+                        )}
+                        {hideSidebar && (
+                            <button
+                                type="button"
+                                className="chat-header-back-btn"
+                                onClick={() => setActiveId(null)}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--text-main)',
+                                    cursor: 'pointer',
+                                    marginRight: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '6px'
+                                }}
+                                title="Back to classroom members"
+                            >
+                                <ArrowLeft size={20} />
+                            </button>
+                        )}
                         <div
                             className="header-avatar"
                             style={{ 
@@ -1636,7 +1684,10 @@ function Chat() {
             {/* Create Study Group Modal */}
             <CreateGroup
                 isOpen={showAddModal.open && showAddModal.type === 'group'}
-                onClose={() => setShowAddModal({ open: false, type: 'group' })}
+                onClose={() => {
+                    setShowAddModal({ open: false, type: 'group' });
+                    onCloseCreateGroupDirectly?.();
+                }}
                 onCreate={(groupDetails) => {
                     const itemId = groupDetails.name.toLowerCase().replace(/\s+/g, '-');
                     const memberList = ['gs', ...groupDetails.members];
@@ -1672,6 +1723,7 @@ function Chat() {
                     }));
                     setActiveId(itemId);
                     setShowAddModal({ open: false, type: 'group' });
+                    onCloseCreateGroupDirectly?.();
                 }}
             />
 
