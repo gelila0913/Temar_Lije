@@ -40,6 +40,8 @@ export default function ClassroomDetail({
         currentTab={currentNavTab}
         onTabChange={handleHeaderTabChange}
         onLogout={onLogout}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
       />
 
       {currentNavTab === 'study-buddy' ? (

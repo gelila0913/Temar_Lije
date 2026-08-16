@@ -28,13 +28,6 @@ export default function MembersTab({ darkMode, setDarkMode }) {
               </span>
             </div>
           </div>
-          <button 
-            type="button" 
-            className="theme-toggle-btn"
-            onClick={() => setDarkMode(!darkMode)}
-          >
-            <Moon size={18} />
-          </button>
         </div>
 
         <div className="sidebar-search">

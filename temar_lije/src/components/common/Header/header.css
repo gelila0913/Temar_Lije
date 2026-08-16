@@ -149,3 +149,69 @@
         display: none;
     }
 }
+
+/* Theme Toggle Button styling */
+.theme-toggle-btn-header {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    border-radius: 50%;
+    color: #374151;
+    margin-right: 12px;
+    transition: all 0.2s ease;
+}
+
+.theme-toggle-btn-header:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+/* Global Dark Mode rules for Header */
+body.dark .classmind-header {
+    background-color: #1e293b;
+    border-bottom: 1px solid #334155;
+}
+
+body.dark .logo-text {
+    color: #f8fafc;
+}
+
+body.dark .user-name {
+    color: #f8fafc;
+}
+
+body.dark .user-role {
+    background-color: #334155;
+    color: #cbd5e1;
+}
+
+body.dark .nav-item:not(.active) {
+    color: #94a3b8;
+}
+
+body.dark .nav-item:not(.active):hover {
+    background-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark .logout-button {
+    color: #94a3b8;
+}
+
+body.dark .logout-button:hover {
+    background-color: #334155;
+    color: #f8fafc;
+}
+
+body.dark .theme-toggle-btn-header {
+    color: #94a3b8;
+}
+
+body.dark .theme-toggle-btn-header:hover {
+    background-color: #334155;
+    color: #f8fafc;
+}

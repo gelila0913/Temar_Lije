@@ -1,7 +1,7 @@
 import React from 'react';
 import './header.css';
 import logo from '../../../assets/classmind-logo.png';
-import { LayoutGrid, Sparkles, LogOut, MessageSquare } from 'lucide-react';
+import { LayoutGrid, Sparkles, LogOut, MessageSquare, Sun, Moon } from 'lucide-react';
 
 export default function Header({
     userName = "Gelila Sintayehu",
@@ -9,7 +9,9 @@ export default function Header({
     userInitials = "GS",
     currentTab = "classrooms",
     onTabChange,
-    onLogout
+    onLogout,
+    darkMode,
+    setDarkMode
 }) {
     return (
         <header className="classmind-header">
@@ -42,6 +44,16 @@ export default function Header({
             </div>
 
             <div className="header-right">
+                {setDarkMode !== undefined && (
+                    <button
+                        type="button"
+                        className="theme-toggle-btn-header"
+                        onClick={() => setDarkMode(!darkMode)}
+                        title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                    >
+                        {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                    </button>
+                )}
                 <div className="user-profile">
                     <div className="avatar">
                         {userInitials}

@@ -27,7 +27,9 @@ export default function Classrooms({
   currentUser = { name: 'gelila', role: 'Teacher' }, 
   initialClassrooms = DEFAULT_CLASSROOMS,
   onLogout = () => alert('Signing out...'),
-  onSelectClassroom
+  onSelectClassroom,
+  darkMode,
+  setDarkMode
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('classrooms');
@@ -81,6 +83,8 @@ export default function Classrooms({
         currentTab={activeTab} 
         onTabChange={setActiveTab} 
         onLogout={onLogout} 
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
       />
 
       {/* Main Content Area */}
