@@ -3,11 +3,10 @@ import { Search, Moon, Plus, Users, Code, Sparkles, ArrowLeft } from 'lucide-rea
 import './membersTab.css';
 import Chat from '../../../chat/chat.jsx';
 
-export default function MembersTab() {
+export default function MembersTab({ darkMode, setDarkMode }) {
   const [activeTab, setActiveTab] = useState('Members');
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [studyGroups, setStudyGroups] = useState([
     { id: 'widget-kings', name: 'Widget Kings 👑', subtitle: 'Abebe: Deadline Sunday midni...', isClassroom: false, time: '2:54 PM', members: ['gs', 'at', 'yb'], icon: '🦋', color: '#6366f1' },
     { id: 'vd', name: 'vd', subtitle: 'No messages yet', isClassroom: false, time: '', members: ['gs'], icon: '💻', color: '#0d9488' },

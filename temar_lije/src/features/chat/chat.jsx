@@ -11,7 +11,7 @@ const CURATED_EMOJIS = ['😄', '😂', '👍', '❤️', '🔥', '💪', '✅',
 
 const USER_PROFILES = {
     'gs': { name: 'Gelila Sintayehu', initials: 'GS', avatarBg: '#3b82f6', online: true },
-    'at': { name: 'Abebe Tadesse', initials: 'AT', avatarBg: '#8b5cf6', online: true },
+    'at': { name: 'Fanuel Goitom', initials: 'FG', avatarBg: '#8b5cf6', online: true },
     'yb': { name: 'Yonas Bekele', initials: 'YB', avatarBg: '#0d9488', online: true },
     'mh': { name: 'Meron Haile', initials: 'MH', avatarBg: '#f97316', online: false },
     'ta': { name: 'Tigist Alemu', initials: 'TA', avatarBg: '#a855f7', online: true }
@@ -32,7 +32,7 @@ function Chat({
     const darkMode = propDarkMode !== undefined ? propDarkMode : localDarkMode;
     const setDarkMode = propSetDarkMode !== undefined ? propSetDarkMode : setLocalDarkMode;
     const [searchQuery, setSearchQuery] = useState('');
-    
+
     const [localActiveId, setLocalActiveId] = useState('widget-kings');
     const activeId = propActiveId !== undefined ? propActiveId : localActiveId;
     const setActiveId = propSetActiveId !== undefined ? propSetActiveId : setLocalActiveId;
@@ -350,14 +350,14 @@ function Chat({
     // Handle sending the files based on selected Telegram mode
     const handleSendPendingFiles = (sendMode) => {
         const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
+
         if (sendMode === 'grouped') {
             // Group all selected files as a single composite album/gallery message
             const promises = pendingFiles.map(file => {
                 return new Promise((resolve) => {
                     const isImage = file.type.startsWith('image/');
                     const reader = new FileReader();
-                    
+
                     reader.onload = (e) => {
                         resolve({
                             name: file.name,
@@ -399,7 +399,7 @@ function Chat({
                     ...prev,
                     [activeMessagesKey]: [...(prev[activeMessagesKey] || []), newMessage]
                 }));
-                
+
                 // Update sidebar preview
                 const previewText = `sent ${pendingFiles.length} grouped files`;
                 if (studyGroups.some(g => g.id === activeId)) {
@@ -798,8 +798,8 @@ function Chat({
         if (parts.length === 1) return <div>{text}</div>;
 
         // Dynamic link color based on incoming vs outgoing bubble legibility
-        const linkColor = isIncoming 
-            ? (darkMode ? '#60a5fa' : '#2563eb') 
+        const linkColor = isIncoming
+            ? (darkMode ? '#60a5fa' : '#2563eb')
             : '#ffffff';
 
         return (
@@ -1032,233 +1032,233 @@ function Chat({
             {!hideSidebar && (
                 <div className={`chat-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
 
-                {/* Profile Card */}
-                <div className="profile-card">
-                    <div className="profile-info">
-                        <div className="profile-avatar">
-                            GS
-                            <span className="online-dot"></span>
+                    {/* Profile Card */}
+                    <div className="profile-card">
+                        <div className="profile-info">
+                            <div className="profile-avatar">
+                                GS
+                                <span className="online-dot"></span>
+                            </div>
+                            <div className="profile-details">
+                                <span className="profile-name">Gelila Sintayehu</span>
+                                <span className="profile-status">online</span>
+                            </div>
                         </div>
-                        <div className="profile-details">
-                            <span className="profile-name">Gelila Sintayehu</span>
-                            <span className="profile-status">online</span>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                                className="theme-toggle-btn"
+                                onClick={() => setDarkMode(!darkMode)}
+                                title="Toggle theme"
+                            >
+                                {darkMode ? (
+                                    <Sun size={18} />
+                                ) : (
+                                    <Moon size={18} />
+                                )}
+                            </button>
+
+                            <button
+                                className="sidebar-close-btn"
+                                onClick={() => setMobileSidebarOpen(false)}
+                                aria-label="Close Sidebar"
+                                title="Close Sidebar"
+                            >
+                                <X size={18} />
+                            </button>
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <button
-                            className="theme-toggle-btn"
-                            onClick={() => setDarkMode(!darkMode)}
-                            title="Toggle theme"
-                        >
-                            {darkMode ? (
-                                <Sun size={18} />
-                            ) : (
-                                <Moon size={18} />
-                            )}
-                        </button>
-
-                        <button
-                            className="sidebar-close-btn"
-                            onClick={() => setMobileSidebarOpen(false)}
-                            aria-label="Close Sidebar"
-                            title="Close Sidebar"
-                        >
-                            <X size={18} />
-                        </button>
+                    {/* Search Bar */}
+                    <div className="search-bar-container">
+                        <div className="search-wrapper">
+                            <span className="search-icon">
+                                <Search size={16} />
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="Search..."
+                                className="search-input"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
                     </div>
-                </div>
 
-                {/* Search Bar */}
-                <div className="search-bar-container">
-                    <div className="search-wrapper">
-                        <span className="search-icon">
-                            <Search size={16} />
-                        </span>
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            className="search-input"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                </div>
+                    {/* List of Chats */}
+                    <div className="sidebar-list-container">
 
-                {/* List of Chats */}
-                <div className="sidebar-list-container">
-
-                    {selectedGroupIdForTopics ? (() => {
-                        const activeGrp = studyGroups.find(g => g.id === selectedGroupIdForTopics);
-                        if (!activeGrp) return null;
-                        const topics = topicsByGroup[selectedGroupIdForTopics] || [];
-                        return (
-                            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                                {/* Topic Group Header */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderBottom: '1px solid var(--border-color)', marginBottom: '8px' }}>
-                                    <button 
-                                        onClick={() => setSelectedGroupIdForTopics(null)} 
-                                        style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', fontSize: '18px', padding: '4px', display: 'flex', alignItems: 'center' }}
-                                        title="Back to Chats"
-                                    >
-                                        <ArrowLeft size={18} />
-                                    </button>
-                                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                                        <div style={{ fontSize: '14.5px', fontWeight: '700', color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                                            {activeGrp.name}
+                        {selectedGroupIdForTopics ? (() => {
+                            const activeGrp = studyGroups.find(g => g.id === selectedGroupIdForTopics);
+                            if (!activeGrp) return null;
+                            const topics = topicsByGroup[selectedGroupIdForTopics] || [];
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                    {/* Topic Group Header */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderBottom: '1px solid var(--border-color)', marginBottom: '8px' }}>
+                                        <button
+                                            onClick={() => setSelectedGroupIdForTopics(null)}
+                                            style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', fontSize: '18px', padding: '4px', display: 'flex', alignItems: 'center' }}
+                                            title="Back to Chats"
+                                        >
+                                            <ArrowLeft size={18} />
+                                        </button>
+                                        <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                                            <div style={{ fontSize: '14.5px', fontWeight: '700', color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                                {activeGrp.name}
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                                {activeGrp.members ? activeGrp.members.length : 1} members
+                                            </div>
                                         </div>
-                                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                            {activeGrp.members ? activeGrp.members.length : 1} members
-                                        </div>
+                                        <button
+                                            className="add-group-btn"
+                                            onClick={() => setShowCreateTopicModal(true)}
+                                            title="Create Topic"
+                                        >
+                                            <Plus size={16} />
+                                        </button>
                                     </div>
-                                    <button 
-                                        className="add-group-btn" 
-                                        onClick={() => setShowCreateTopicModal(true)}
-                                        title="Create Topic"
+
+                                    {/* List of topics */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        {topics.map(t => (
+                                            <div
+                                                key={t.id}
+                                                className={`sidebar-item ${activeTopicId === t.id ? 'active' : ''}`}
+                                                onClick={() => {
+                                                    setActiveTopicId(t.id);
+                                                    setMobileSidebarOpen(false);
+                                                }}
+                                                style={{ padding: '8px 12px', borderRadius: '12px' }}
+                                            >
+                                                <div
+                                                    className="item-avatar"
+                                                    style={{
+                                                        background: t.color || '#64748b',
+                                                        width: '38px',
+                                                        height: '38px',
+                                                        fontSize: '14px',
+                                                        borderRadius: '50%',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        color: 'white',
+                                                        fontWeight: '700',
+                                                        boxShadow: 'none'
+                                                    }}
+                                                >
+                                                    {t.icon}
+                                                </div>
+                                                <div className="item-text-container" style={{ marginLeft: '10px' }}>
+                                                    <div className="item-title-row">
+                                                        <span className="item-title" style={{ fontSize: '13.5px', fontWeight: '700' }}>{t.name}</span>
+                                                        {t.time && <span className="item-time" style={{ fontSize: '10.5px' }}>{t.time}</span>}
+                                                    </div>
+                                                    <span className="item-subtitle" style={{ fontSize: '12px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', display: 'block' }}>
+                                                        {t.subtitle}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })() : (
+                            <>
+                                {/* Classrooms Section */}
+                                <div className="section-header">
+                                    <span>Classrooms</span>
+                                    <button
+                                        className="add-group-btn"
+                                        title="Create Classroom"
+                                        onClick={() => setShowAddModal({ open: true, type: 'classroom' })}
                                     >
                                         <Plus size={16} />
                                     </button>
                                 </div>
 
-                                {/* List of topics */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    {topics.map(t => (
-                                        <div
-                                            key={t.id}
-                                            className={`sidebar-item ${activeTopicId === t.id ? 'active' : ''}`}
-                                            onClick={() => {
-                                                setActiveTopicId(t.id);
-                                                setMobileSidebarOpen(false);
-                                            }}
-                                            style={{ padding: '8px 12px', borderRadius: '12px' }}
-                                        >
-                                            <div 
-                                                className="item-avatar"
-                                                style={{ 
-                                                    background: t.color || '#64748b', 
-                                                    width: '38px',
-                                                    height: '38px',
-                                                    fontSize: '14px', 
-                                                    borderRadius: '50%',
-                                                    display: 'flex', 
-                                                    alignItems: 'center', 
-                                                    justifyContent: 'center', 
-                                                    color: 'white',
-                                                    fontWeight: '700',
-                                                    boxShadow: 'none'
-                                                }}
-                                            >
-                                                {t.icon}
-                                            </div>
-                                            <div className="item-text-container" style={{ marginLeft: '10px' }}>
-                                                <div className="item-title-row">
-                                                    <span className="item-title" style={{ fontSize: '13.5px', fontWeight: '700' }}>{t.name}</span>
-                                                    {t.time && <span className="item-time" style={{ fontSize: '10.5px' }}>{t.time}</span>}
-                                                </div>
-                                                <span className="item-subtitle" style={{ fontSize: '12px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', display: 'block' }}>
-                                                    {t.subtitle}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })() : (
-                        <>
-                            {/* Classrooms Section */}
-                            <div className="section-header">
-                                <span>Classrooms</span>
-                                <button
-                                    className="add-group-btn"
-                                    title="Create Classroom"
-                                    onClick={() => setShowAddModal({ open: true, type: 'classroom' })}
-                                >
-                                    <Plus size={16} />
-                                </button>
-                            </div>
-
-                            {filteredClassrooms.map(c => (
-                                <div
-                                    key={c.id}
-                                    className={`sidebar-item ${activeId === c.id ? 'active' : ''}`}
-                                    onClick={() => {
-                                        setActiveId(c.id);
-                                        setSelectedGroupIdForTopics(null);
-                                        setMobileSidebarOpen(false);
-                                    }}
-                                >
-                                    <div className="item-avatar classroom">
-                                        {/* Classroom Icon */}
-                                        <BookOpen size={20} />
-                                    </div>
-                                    <div className="item-text-container">
-                                        <div className="item-title-row">
-                                            <span className="item-title">{c.name}</span>
-                                            {c.time && <span className="item-time">{c.time}</span>}
-                                        </div>
-                                        <span className="item-subtitle">{c.subtitle}</span>
-                                    </div>
-                                </div>
-                            ))}
-
-                            {/* Study Groups Section */}
-                            <div className="section-header">
-                                <span>Study Groups</span>
-                                <button
-                                    className="add-group-btn"
-                                    title="Create Study Group"
-                                    onClick={() => setShowAddModal({ open: true, type: 'group' })}
-                                >
-                                    <Plus size={16} />
-                                </button>
-                            </div>
-
-                            {filteredStudyGroups.map(g => (
-                                <div
-                                    key={g.id}
-                                    className={`sidebar-item ${activeId === g.id ? 'active' : ''}`}
-                                    onClick={() => {
-                                        setActiveId(g.id);
-                                        setSelectedGroupIdForTopics(g.id);
-                                        setActiveTopicId('general');
-                                        setMobileSidebarOpen(false);
-                                    }}
-                                >
-                                    <div 
-                                        className="item-avatar study-group"
-                                        style={{ 
-                                            background: g.color || 'linear-gradient(135deg, #8b5cf6, #6d28d9)', 
-                                            fontSize: '18px', 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            justifyContent: 'center', 
-                                            color: 'white',
-                                            boxShadow: 'none'
+                                {filteredClassrooms.map(c => (
+                                    <div
+                                        key={c.id}
+                                        className={`sidebar-item ${activeId === c.id ? 'active' : ''}`}
+                                        onClick={() => {
+                                            setActiveId(c.id);
+                                            setSelectedGroupIdForTopics(null);
+                                            setMobileSidebarOpen(false);
                                         }}
                                     >
-                                        {g.icon || '👥'}
-                                    </div>
-                                    <div className="item-text-container">
-                                        <div className="item-title-row">
-                                            <span className="item-title">{g.name}</span>
-                                            {g.time && <span className="item-time">{g.time}</span>}
+                                        <div className="item-avatar classroom">
+                                            {/* Classroom Icon */}
+                                            <BookOpen size={20} />
                                         </div>
-                                        <span className="item-subtitle">{g.subtitle}</span>
+                                        <div className="item-text-container">
+                                            <div className="item-title-row">
+                                                <span className="item-title">{c.name}</span>
+                                                {c.time && <span className="item-time">{c.time}</span>}
+                                            </div>
+                                            <span className="item-subtitle">{c.subtitle}</span>
+                                        </div>
                                     </div>
+                                ))}
+
+                                {/* Study Groups Section */}
+                                <div className="section-header">
+                                    <span>Study Groups</span>
+                                    <button
+                                        className="add-group-btn"
+                                        title="Create Study Group"
+                                        onClick={() => setShowAddModal({ open: true, type: 'group' })}
+                                    >
+                                        <Plus size={16} />
+                                    </button>
                                 </div>
-                            ))}
-                        </>
-                    )}
 
-                    {filteredClassrooms.length === 0 && filteredStudyGroups.length === 0 && (
-                        <div style={{ padding: '20px 10px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>
-                            No conversations found
-                        </div>
-                    )}
+                                {filteredStudyGroups.map(g => (
+                                    <div
+                                        key={g.id}
+                                        className={`sidebar-item ${activeId === g.id ? 'active' : ''}`}
+                                        onClick={() => {
+                                            setActiveId(g.id);
+                                            setSelectedGroupIdForTopics(g.id);
+                                            setActiveTopicId('general');
+                                            setMobileSidebarOpen(false);
+                                        }}
+                                    >
+                                        <div
+                                            className="item-avatar study-group"
+                                            style={{
+                                                background: g.color || 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                                                fontSize: '18px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: 'white',
+                                                boxShadow: 'none'
+                                            }}
+                                        >
+                                            {g.icon || '👥'}
+                                        </div>
+                                        <div className="item-text-container">
+                                            <div className="item-title-row">
+                                                <span className="item-title">{g.name}</span>
+                                                {g.time && <span className="item-time">{g.time}</span>}
+                                            </div>
+                                            <span className="item-subtitle">{g.subtitle}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
+                        )}
 
+                        {filteredClassrooms.length === 0 && filteredStudyGroups.length === 0 && (
+                            <div style={{ padding: '20px 10px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                                No conversations found
+                            </div>
+                        )}
+
+                    </div>
                 </div>
-            </div>
             )}
 
             {/* Main Chat Pane */}
@@ -1299,7 +1299,7 @@ function Chat({
                         )}
                         <div
                             className="header-avatar"
-                            style={{ 
+                            style={{
                                 cursor: 'pointer',
                                 background: activeItem.color || 'var(--active-item-border)',
                                 fontSize: !activeItem.isClassroom ? '24px' : '15px',
@@ -1327,8 +1327,7 @@ function Chat({
                                     activeItem.isClassroom ? (
                                         'Classroom channel'
                                     ) : (
-                                        `${activeItem.members ? activeItem.members.length : 1} members · ${
-                                            activeItem.members ? activeItem.members.filter(m => USER_PROFILES[m]?.online).length : 1
+                                        `${activeItem.members ? activeItem.members.length : 1} members · ${activeItem.members ? activeItem.members.filter(m => USER_PROFILES[m]?.online).length : 1
                                         } online`
                                     )
                                 )}
@@ -1883,19 +1882,19 @@ function Chat({
                     setIsAddingMember(false);
                 }}>
                     <div className="members-list-modal" style={{ width: '420px' }} onClick={(e) => e.stopPropagation()}>
-                        
+
                         {/* Group Profile Header */}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-                            <div 
-                                className="header-avatar" 
-                                style={{ 
-                                    width: '64px', 
-                                    height: '64px', 
-                                    fontSize: '26px', 
-                                    borderRadius: '18px', 
-                                    marginBottom: '10px', 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
+                            <div
+                                className="header-avatar"
+                                style={{
+                                    width: '64px',
+                                    height: '64px',
+                                    fontSize: '26px',
+                                    borderRadius: '18px',
+                                    marginBottom: '10px',
+                                    display: 'flex',
+                                    alignItems: 'center',
                                     justifyContent: 'center',
                                     background: activeItem.color || 'var(--active-item-border)',
                                     color: 'white'
@@ -2057,12 +2056,12 @@ function Chat({
 
             {/* Telegram-style Invite Join Preview Modal */}
             {joinPreviewGroupId && (() => {
-                const previewItem = 
-                    studyGroups.find(g => g.id === joinPreviewGroupId) || 
+                const previewItem =
+                    studyGroups.find(g => g.id === joinPreviewGroupId) ||
                     classrooms.find(c => c.id === joinPreviewGroupId);
                 if (!previewItem) return null;
                 const isMember = previewItem.members?.includes('gs') || previewItem.isClassroom;
-                
+
                 const handleJoinAction = () => {
                     if (isMember) {
                         // Enter Chat directly
@@ -2078,10 +2077,10 @@ function Chat({
                     } else {
                         // Send simulated join request (as requested: "if u are new to the group you request and join the group")
                         setJoinRequestState('sending');
-                        
+
                         setTimeout(() => {
                             setJoinRequestState('approved');
-                            
+
                             // Add member in state
                             setStudyGroups(prev =>
                                 prev.map(g => {
@@ -2153,8 +2152,8 @@ function Chat({
                                         'Enter Chat'
                                     ) : (
                                         joinRequestState === null ? 'Request to Join Group' :
-                                        joinRequestState === 'sending' ? 'Sending Request... ⏳' :
-                                        'Request Approved! Entering... 🎉'
+                                            joinRequestState === 'sending' ? 'Sending Request... ⏳' :
+                                                'Request Approved! Entering... 🎉'
                                     )}
                                 </button>
                                 <button
@@ -2269,7 +2268,7 @@ function Chat({
                 onSend={(topicName) => {
                     const topicId = topicName.toLowerCase().replace(/\s+/g, '-');
                     const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    
+
                     const targetGroupKey = selectedGroupIdForTopics || activeId;
                     setTopicsByGroup(prev => ({
                         ...prev,

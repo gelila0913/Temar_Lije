@@ -13,7 +13,9 @@ export default function ClassroomDetail({
   classroom = { title: "Flutter", subject: "Widget · widget structure" },
   currentUser = { name: "Gelila Sintayehu", role: "Student" },
   onBackToClassrooms,
-  onLogout
+  onLogout,
+  darkMode,
+  setDarkMode
 }) {
   const [currentNavTab, setCurrentNavTab] = useState('classrooms');
   const [activeDetailTab, setActiveDetailTab] = useState('materials');
@@ -62,7 +64,7 @@ export default function ClassroomDetail({
             {activeDetailTab === 'assignments' && <AssignmentsTab />}
             {activeDetailTab === 'attendance' && <AttendanceTab />}
             {activeDetailTab === 'quizzes' && <QuizzesTab />}
-            {activeDetailTab === 'members' && <MembersTab />}
+            {activeDetailTab === 'members' && <MembersTab darkMode={darkMode} setDarkMode={setDarkMode} />}
           </main>
         </>
       )}
