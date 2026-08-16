@@ -383,3 +383,18 @@
     width: 100%;
   }
 }
+
+/* Global Dark Mode rules for LiveClassTab */
+:global(body.dark) .container {
+  --lc-bg: #121824;
+  --lc-surface: #1e293b;
+  --lc-border: #334155;
+  --lc-border-soft: #1e293b;
+
+  --lc-text-primary: #f8fafc;
+  --lc-text-secondary: #94a3b8;
+  --lc-text-tertiary: #64748b;
+
+  --lc-green-tint: #1e293b;
+  --lc-green-tint-text: #34d399;
+}

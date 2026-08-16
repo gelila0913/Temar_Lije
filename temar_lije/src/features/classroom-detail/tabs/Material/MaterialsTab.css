@@ -138,3 +138,35 @@
   margin: 0 auto;
   line-height: 1.5;
 }
+
+/* Dark Mode styling overrides for Materials Tab */
+body.dark .classroom-detail-container {
+  background-color: #121824;
+  color: #f8fafc;
+}
+
+body.dark .classroom-tab-pill {
+  background-color: #1e293b;
+  color: #94a3b8;
+}
+
+body.dark .classroom-tab-pill:hover {
+  background-color: #334155;
+  color: #f8fafc;
+}
+
+body.dark .materials-search-input {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  color: #f8fafc;
+}
+
+body.dark .materials-empty-state-card {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+
+body.dark .materials-empty-state-text {
+  color: #cbd5e1;
+}

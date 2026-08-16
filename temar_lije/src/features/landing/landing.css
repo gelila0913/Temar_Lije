@@ -309,3 +309,45 @@
   padding-top: 1.5rem;
   font-size: 0.8rem;
 }
+
+/* Dark Mode styling overrides for Landing Page */
+body.dark .landing-container {
+  background-color: #121824;
+  color: #f8fafc;
+}
+
+body.dark .landing-brand-title,
+body.dark .hero-headline,
+body.dark .section-title,
+body.dark .feature-card-title {
+  color: #f8fafc;
+}
+
+body.dark .hero-description,
+body.dark .feature-card-desc {
+  color: #cbd5e1;
+}
+
+body.dark .ai-badge {
+  background-color: #1e293b;
+  color: #cbd5e1;
+}
+
+body.dark .feature-card {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+}
+
+body.dark .feature-icon-badge {
+  background-color: #115e59;
+}
+
+body.dark .btn-join-class {
+  background-color: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+}
+
+body.dark .btn-join-class:hover {
+  background-color: #334155;
+}

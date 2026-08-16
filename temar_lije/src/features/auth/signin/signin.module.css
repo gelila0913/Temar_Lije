@@ -329,3 +329,16 @@
     font-size: 18px;
   }
 }
+
+/* Global Dark Mode rules for Sign In Page */
+:global(body.dark) .page {
+  --au-bg-start: #0f172a;
+  --au-bg-end: #121824;
+  --au-surface: #1e293b;
+  --au-border: #334155;
+  --au-border-soft: #1e293b;
+
+  --au-text-primary: #f8fafc;
+  --au-text-secondary: #94a3b8;
+  --au-text-tertiary: #64748b;
+}

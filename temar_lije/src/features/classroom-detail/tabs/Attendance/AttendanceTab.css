@@ -130,3 +130,26 @@
   margin: 0 auto;
   line-height: 1.5;
 }
+
+/* Dark Mode styling overrides for Attendance Tab */
+body.dark .attendance-control-card {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+body.dark .attendance-input {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  color: #f8fafc;
+}
+
+body.dark .attendance-empty-state-card {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+
+body.dark .attendance-empty-state-text {
+  color: #cbd5e1;
+}

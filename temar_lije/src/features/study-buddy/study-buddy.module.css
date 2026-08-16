@@ -370,3 +370,17 @@
     font-size: 22px;
   }
 }
+
+/* Global Dark Mode rules for StudyBuddy */
+:global(body.dark) .container {
+  --sb-bg: #121824;
+  --sb-surface: #1e293b;
+  --sb-border: #334155;
+  --sb-border-soft: #1e293b;
+
+  --sb-text-primary: #f8fafc;
+  --sb-text-secondary: #94a3b8;
+  --sb-text-tertiary: #64748b;
+
+  --sb-green-tint: #1e293b;
+}

@@ -274,3 +274,15 @@
     max-width: none;
   }
 }
+
+/* Global Dark Mode rules for AssignmentsTab */
+:global(body.dark) .container {
+  --at-bg: #121824;
+  --at-surface: #1e293b;
+  --at-border: #334155;
+  --at-border-soft: #1e293b;
+
+  --at-text-primary: #f8fafc;
+  --at-text-secondary: #94a3b8;
+  --at-text-tertiary: #64748b;
+}

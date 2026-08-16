@@ -31,7 +31,14 @@ export default function ClassroomDetail({
   };
 
   return (
-    <div className="classroom-detail-page" style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
+    <div 
+      className="classroom-detail-page" 
+      style={{ 
+        minHeight: '100vh', 
+        backgroundColor: darkMode ? '#121824' : '#f9fafb',
+        color: darkMode ? '#f8fafc' : '#111827'
+      }}
+    >
       {/* Top Header */}
       <Header
         userName={currentUser.name}
