@@ -1,0 +1,291 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model assignment_submissions {
+  id              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assignment_id   String      @db.Uuid
+  student_id      String      @db.Uuid
+  attempt_number  Int         @default(1)
+  is_latest       Boolean     @default(true)
+  submission_text String?
+  file_url        String?
+  grade           Decimal?    @db.Decimal(5, 2)
+  feedback        String?
+  submitted_at    DateTime    @default(now()) @db.Timestamptz(6)
+  assignments     assignments @relation(fields: [assignment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users           users       @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([assignment_id, student_id, attempt_number], map: "uq_assignment_attempt")
+  @@index([assignment_id, student_id], map: "idx_assignment_submissions_latest", where: raw("(is_latest = true)"))
+}
+
+model assignments {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                  String                   @db.VarChar(250)
+  description            String?
+  due_date               DateTime?                @db.Timestamptz(6)
+  total_points           Int                      @default(100)
+  classroom_id           String                   @db.Uuid
+  created_by_id          String                   @db.Uuid
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  deleted_at             DateTime?                @db.Timestamptz(6)
+  assignment_submissions assignment_submissions[]
+  classrooms             classrooms               @relation(fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                  users                    @relation(fields: [created_by_id], references: [id], onUpdate: NoAction)
+
+  @@index([classroom_id], map: "idx_assignments_classroom")
+}
+
+model attendance_records {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id          String              @db.Uuid
+  student_id          String              @db.Uuid
+  status              attendance_status   @default(PRESENT)
+  checked_in_at       DateTime            @default(now()) @db.Timestamptz(6)
+  attendance_sessions attendance_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users               users               @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([session_id, student_id], map: "uq_session_student")
+  @@index([session_id], map: "idx_attendance_records_session")
+}
+
+model attendance_sessions {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classroom_id       String               @db.Uuid
+  session_code       String?              @db.VarChar(6)
+  is_active          Boolean              @default(true)
+  started_at         DateTime             @default(now()) @db.Timestamptz(6)
+  ended_at           DateTime?            @db.Timestamptz(6)
+  attendance_records attendance_records[]
+  classrooms         classrooms           @relation(fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model chat_messages {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sender_id      String        @db.Uuid
+  classroom_id   String?       @db.Uuid
+  study_group_id String?       @db.Uuid
+  content        String
+  attachments    Json?
+  created_at     DateTime      @default(now()) @db.Timestamptz(6)
+  classrooms     classrooms?   @relation(fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users          users         @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  study_groups   study_groups? @relation(fields: [study_group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([classroom_id, created_at(sort: Desc)], map: "idx_chat_messages_classroom")
+  @@index([study_group_id, created_at(sort: Desc)], map: "idx_chat_messages_group")
+}
+
+model classroom_members {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classroom_id String     @db.Uuid
+  user_id      String     @db.Uuid
+  joined_at    DateTime   @default(now()) @db.Timestamptz(6)
+  classrooms   classrooms @relation(fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([classroom_id, user_id], map: "uq_classroom_member")
+  @@index([user_id], map: "idx_classroom_members_user")
+}
+
+model classroom_teachers {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classroom_id String     @db.Uuid
+  user_id      String     @db.Uuid
+  is_owner     Boolean    @default(false)
+  added_at     DateTime   @default(now()) @db.Timestamptz(6)
+  classrooms   classrooms @relation(fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users        users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([classroom_id, user_id], map: "uq_classroom_teacher")
+  @@index([user_id], map: "idx_classroom_teachers_user")
+}
+
+model classrooms {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title               String                @db.VarChar(200)
+  subject             String?               @db.VarChar(100)
+  description         String?
+  invite_code         String                @unique @db.VarChar(6)
+  created_by_id       String                @db.Uuid
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+  deleted_at          DateTime?             @db.Timestamptz(6)
+  assignments         assignments[]
+  attendance_sessions attendance_sessions[]
+  chat_messages       chat_messages[]
+  classroom_members   classroom_members[]
+  classroom_teachers  classroom_teachers[]
+  users               users                 @relation(fields: [created_by_id], references: [id], onUpdate: NoAction)
+  materials           materials[]
+  quizzes             quizzes[]
+  study_groups        study_groups[]
+
+  @@index([invite_code], map: "idx_classrooms_invite_code")
+}
+
+model materials {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title           String        @db.VarChar(250)
+  file_url        String
+  file_type       material_type @default(PDF)
+  file_size_bytes BigInt?
+  is_vectorized   Boolean       @default(false)
+  classroom_id    String        @db.Uuid
+  uploaded_by_id  String        @db.Uuid
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime      @default(now()) @db.Timestamptz(6)
+  deleted_at      DateTime?     @db.Timestamptz(6)
+  classrooms      classrooms    @relation(fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users           users         @relation(fields: [uploaded_by_id], references: [id], onUpdate: NoAction)
+
+  @@index([classroom_id], map: "idx_materials_classroom")
+}
+
+model quiz_questions {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quiz_id        String        @db.Uuid
+  question_text  String
+  question_type  question_type @default(MULTIPLE_CHOICE)
+  options        Json?
+  correct_answer String
+  points         Int           @default(1)
+  created_at     DateTime      @default(now()) @db.Timestamptz(6)
+  quizzes        quizzes       @relation(fields: [quiz_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model quiz_submissions {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quiz_id        String   @db.Uuid
+  student_id     String   @db.Uuid
+  attempt_number Int      @default(1)
+  is_latest      Boolean  @default(true)
+  score          Decimal? @db.Decimal(5, 2)
+  answers        Json
+  submitted_at   DateTime @default(now()) @db.Timestamptz(6)
+  quizzes        quizzes  @relation(fields: [quiz_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users          users    @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([quiz_id, student_id, attempt_number], map: "uq_quiz_attempt")
+  @@index([quiz_id, student_id], map: "idx_quiz_submissions_latest", where: raw("(is_latest = true)"))
+}
+
+model quizzes {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title            String             @db.VarChar(250)
+  description      String?
+  duration_minutes Int                @default(30)
+  is_published     Boolean            @default(false)
+  classroom_id     String             @db.Uuid
+  created_at       DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime           @default(now()) @db.Timestamptz(6)
+  deleted_at       DateTime?          @db.Timestamptz(6)
+  quiz_questions   quiz_questions[]
+  quiz_submissions quiz_submissions[]
+  classrooms       classrooms         @relation(fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model study_group_members {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  study_group_id String       @db.Uuid
+  user_id        String       @db.Uuid
+  joined_at      DateTime     @default(now()) @db.Timestamptz(6)
+  study_groups   study_groups @relation(fields: [study_group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users          users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([study_group_id, user_id], map: "uq_group_member")
+  @@index([user_id], map: "idx_study_group_members_user")
+}
+
+model study_groups {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String                @db.VarChar(150)
+  classroom_id        String                @db.Uuid
+  created_by_id       String                @db.Uuid
+  icon                String?               @db.VarChar(50)
+  color_accent        String?               @db.VarChar(20)
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  chat_messages       chat_messages[]
+  study_group_members study_group_members[]
+  classrooms          classrooms            @relation(fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users               users                 @relation(fields: [created_by_id], references: [id], onUpdate: NoAction)
+}
+
+model sync_logs {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  device_hub_id String      @db.VarChar(100)
+  entity_name   String      @db.VarChar(100)
+  entity_id     String      @db.Uuid
+  action        sync_action
+  payload       Json
+  synced_at     DateTime    @default(now()) @db.Timestamptz(6)
+
+  @@index([device_hub_id, synced_at], map: "idx_sync_logs_device")
+}
+
+model users {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                  String                   @unique @db.VarChar(255)
+  password_hash          String                   @db.VarChar(255)
+  full_name              String                   @db.VarChar(150)
+  role                   user_role                @default(STUDENT)
+  avatar_url             String?
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  deleted_at             DateTime?                @db.Timestamptz(6)
+  assignment_submissions assignment_submissions[]
+  assignments            assignments[]
+  attendance_records     attendance_records[]
+  chat_messages          chat_messages[]
+  classroom_members      classroom_members[]
+  classroom_teachers     classroom_teachers[]
+  classrooms             classrooms[]
+  materials              materials[]
+  quiz_submissions       quiz_submissions[]
+  study_group_members    study_group_members[]
+  study_groups           study_groups[]
+
+  @@index([email], map: "idx_users_email")
+}
+
+enum attendance_status {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum material_type {
+  PDF
+  SLIDES
+  DOCUMENT
+  LINK
+}
+
+enum question_type {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+enum sync_action {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum user_role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
