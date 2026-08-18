@@ -16,7 +16,7 @@ export class DatabaseService
 
   constructor() {
     const adapter = new PrismaPg({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: process.env.APP_DATABASE_URL,
     });
 
     super({ adapter });
