@@ -126,6 +126,7 @@ model classrooms {
   classroom_members   classroom_members[]
   classroom_teachers  classroom_teachers[]
   users               users                 @relation(fields: [created_by_id], references: [id], onUpdate: NoAction)
+  live_classes        live_classes[]
   materials           materials[]
   quizzes             quizzes[]
   study_groups        study_groups[]
@@ -250,12 +251,29 @@ model users {
   classroom_members      classroom_members[]
   classroom_teachers     classroom_teachers[]
   classrooms             classrooms[]
+  live_classes           live_classes[]
   materials              materials[]
   quiz_submissions       quiz_submissions[]
   study_group_members    study_group_members[]
   study_groups           study_groups[]
 
   @@index([email], map: "idx_users_email")
+}
+
+model live_classes {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classroom_id  String     @db.Uuid
+  title         String     @db.VarChar(250)
+  room_url      String?
+  started_by_id String     @db.Uuid
+  is_active     Boolean    @default(true)
+  started_at    DateTime   @default(now()) @db.Timestamptz(6)
+  ended_at      DateTime?  @db.Timestamptz(6)
+  created_at    DateTime   @default(now()) @db.Timestamptz(6)
+  classrooms    classrooms @relation(fields: [classroom_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users         users      @relation(fields: [started_by_id], references: [id], onUpdate: NoAction)
+
+  @@index([classroom_id], map: "idx_live_classes_classroom")
 }
 
 enum attendance_status {
