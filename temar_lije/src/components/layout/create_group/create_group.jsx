@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { Check } from 'lucide-react';
-import './create_group.css';
+import React from 'react';
+import CreateGroupModal from '../../members/CreateGroupModal';
 
 const ICONS = ['🦋', '⚛️', '🌲', '🎯', '🚀', '🔥', '💡', '🧪', '🎨', '⚡', '📚', '🏆'];
 const COLORS = [
@@ -156,5 +155,3 @@ function CreateGroup({ isOpen, onClose, onCreate }) {
         </div>
     );
 }
-
-export default CreateGroup;

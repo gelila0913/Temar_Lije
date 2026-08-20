@@ -3,6 +3,7 @@ import { Search, Plus, Users, Code, Sparkles, Trash2, CheckCircle2 } from 'lucid
 import io from 'socket.io-client';
 import './membersTab.css';
 import Chat from '../../../chat/chat.jsx';
+import CreateGroupModal from '../../../../components/members/CreateGroupModal.jsx';
 import { API_BASE_URL } from '../../../../config/constants';
 import { useAuth } from '../../../../context/AuthContext';
 import CreateGroup from '../../../../components/layout/create_group/create_group.jsx';
@@ -90,14 +91,14 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
       .then(res => res.json())
       .then(data => {
         if (data && Array.isArray(data)) {
-          const mainGroups = data.filter(g => {
-            const isTopic = data.some(other => other.id !== g.id && g.id.startsWith(`${other.id}-`));
+          const mainGroups = data.filter((g) => {
+            const isTopic = data.some((other) => other.id !== g.id && g.id.startsWith(`${other.id}-`));
             return !isTopic;
           });
-          const mappedGroups = mainGroups.map(g => ({
+          const mappedGroups = mainGroups.map((g) => ({
             id: g.id,
             name: g.name,
-            subtitle: g.description || 'No messages yet',
+            subtitle: g.subtitle || g.description || `${g.members?.length || 0} members`,
             isClassroom: false,
             time: '',
             icon: g.icon || '📚',
@@ -202,13 +203,13 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
         method: 'DELETE',
         headers
       })
-      .then(() => {
-        setStudyGroups(prev => prev.filter(g => g.id !== groupId));
-        if (selectedGroupId === groupId) {
-          setSelectedGroupId(null);
-        }
-      })
-      .catch(err => console.error('Failed to delete group in MembersTab:', err));
+        .then(() => {
+          setStudyGroups((prev) => prev.filter((g) => g.id !== groupId));
+          if (selectedGroupId === groupId) {
+            setSelectedGroupId(null);
+          }
+        })
+        .catch((err) => console.error('Failed to delete group in MembersTab:', err));
     }
   };
 
@@ -276,8 +277,8 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
         <div className="sidebar-section">
           <div className="section-header">
             <span>STUDY GROUPS</span>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="add-group-btn"
               onClick={() => setShowCreateGroup(true)}
               title="Create new study group"
