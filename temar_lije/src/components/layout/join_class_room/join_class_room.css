@@ -51,3 +51,13 @@
 .btn-join:active {
   transform: translateY(1px);
 }
+
+/* Dark Mode styling overrides for Join Classroom Modal */
+body.dark .modal-error {
+  background: #3a2226;
+  border: 1px solid #5b2d34;
+}
+
+body.dark .modal-icon-badge {
+  background: #243832;
+}

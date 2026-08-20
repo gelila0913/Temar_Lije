@@ -71,7 +71,7 @@ export class MaterialsService {
           title: title.trim(),
           fileUrl: filePath,
           fileType: (fileType as any) || 'PDF',
-          fileSizeBytes: fileSizeBytes ? BigInt(fileSizeBytes) : null,
+          fileSizeBytes: fileSizeBytes ? Number(fileSizeBytes) : null,
           classroomId: targetClassroom.id,
           uploadedById: uId,
         },
@@ -122,5 +122,3 @@ export class MaterialsService {
     }
   }
 }
-
-

@@ -34,7 +34,7 @@ export default function LiveClassTab({
   // ---- Attendance ----
   const [checkIns, setCheckIns] = useState([
     { id: '1', name: 'Fiema Yaregal', time: '10:02 AM' },
-    { id: '2', name: 'Gelila Sintayehu', time: '10:05 AM' },
+    { id: '2', name: 'Hana Tesfaye', time: '10:05 AM' },
   ]);
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
   const [isTakingAttendance, setIsTakingAttendance] = useState(false);

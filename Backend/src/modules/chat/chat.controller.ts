@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   Req,
+  Query,
   UseGuards,
   UseInterceptors,
   UploadedFile,
@@ -18,7 +19,7 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
-import * as JwtAuthGuardModule from '../../common/guards/JwtAuthGuard';
+const { OptionalJwtAuthGuard } = require('../../common/guards/JwtAuthGuard');
 
 const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; // 20 MB
 
@@ -83,7 +84,7 @@ const uploadStorage = diskStorage({
 });
 
 @Controller('chat')
-@UseGuards(JwtAuthGuardModule.JwtAuthGuard)
+@UseGuards(OptionalJwtAuthGuard)
 export class ChatController {
   constructor(
     private readonly chatService: ChatService,
@@ -131,14 +132,15 @@ export class ChatController {
       createGroupDto.memberIds || [],
       createGroupDto.id,
       req.user?.id,
+      createGroupDto.classroomId,
     );
     this.chatGateway.server.emit('groupCreated', group);
     return group;
   }
 
   @Get('groups')
-  async getGroups(@Req() req: any) {
-    return this.chatService.getGroups(req.user?.id);
+  async getGroups(@Req() req: any, @Query('classroomId') classroomId?: string) {
+    return this.chatService.getGroups(req.user?.id, classroomId);
   }
 
   @Get('history/:groupId')

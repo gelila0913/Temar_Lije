@@ -143,6 +143,12 @@
 body.dark .classroom-detail-container {
   background-color: #121824;
   color: #f8fafc;
+  --surface-color: #1e293b;
+  --card-border: #334155;
+  --muted-text: #94a3b8;
+  --soft-btn-bg: #222b3c;
+  --soft-btn-border: #334155;
+  --soft-btn-text: #e2e8f0;
 }
 
 body.dark .classroom-tab-pill {
@@ -169,4 +175,8 @@ body.dark .materials-empty-state-card {
 
 body.dark .materials-empty-state-text {
   color: #cbd5e1;
+}
+
+body.dark .classroom-tabs-bar {
+  border-bottom: 1px solid #232d3f;
 }

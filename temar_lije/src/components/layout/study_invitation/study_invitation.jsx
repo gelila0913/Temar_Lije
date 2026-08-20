@@ -5,7 +5,7 @@ import './study_invitation.css';
 function StudyInvitation({
     isOpen,
     onClose,
-    inviterName = 'Gelila Sintayehu',
+    inviterName = 'Your study partner',
     inviterInitials = 'GS',
     topicName = 'StatefulWidget Lifecycle',
     categoryName = 'Flutter · Widget Structure',

@@ -22,10 +22,34 @@ const DEFAULT_QUIZZES = [
 
 export default function QuizzesTab({
   isTeacher = false,
-  currentUser = { name: 'User', role: 'Student' }
+  currentUser = { name: 'User', role: 'Student' },
+  darkMode = false
 }) {
   const [quizzes, setQuizzes] = useState(DEFAULT_QUIZZES);
   const [takingQuizId, setTakingQuizId] = useState(null);
+
+  const cardStyle = {
+    background: darkMode ? '#1e293b' : '#ffffff',
+    border: `1px solid ${darkMode ? '#334155' : '#e5e7eb'}`,
+    borderRadius: '14px',
+    padding: '20px',
+    boxShadow: darkMode ? '0 1px 3px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.05)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  };
+  const mutedColor = darkMode ? '#94a3b8' : '#6b7280';
+  const subtleBtnStyle = {
+    width: '100%',
+    padding: '8px 14px',
+    background: darkMode ? '#222b3c' : '#f3f4f6',
+    color: darkMode ? '#e2e8f0' : '#374151',
+    border: `1px solid ${darkMode ? '#334155' : '#d1d5db'}`,
+    borderRadius: '8px',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+  };
 
   const handleCreateQuiz = () => {
     if (!isTeacher) return;
@@ -61,7 +85,7 @@ export default function QuizzesTab({
           <h2 style={{ fontSize: '1.4rem', fontWeight: '700', margin: '0 0 4px 0' }}>
             {isTeacher ? 'Classroom Quizzes (Teacher)' : 'Available Quizzes (Student)'}
           </h2>
-          <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: mutedColor }}>
             {isTeacher
               ? 'Create quizzes with automated grading and view class performance metrics.'
               : 'Test your understanding, practice key concepts, and check your scores.'}
@@ -95,16 +119,7 @@ export default function QuizzesTab({
         {quizzes.map((q) => (
           <div
             key={q.id}
-            style={{
-              background: '#ffffff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '14px',
-              padding: '20px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}
+            style={cardStyle}
           >
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -140,7 +155,7 @@ export default function QuizzesTab({
               </div>
 
               <h3 style={{ fontSize: '1.05rem', fontWeight: '600', margin: '0 0 8px 0' }}>{q.title}</h3>
-              <p style={{ fontSize: '0.85rem', color: '#6b7280', margin: '0 0 16px 0' }}>
+              <p style={{ fontSize: '0.85rem', color: mutedColor, margin: '0 0 16px 0' }}>
                 {isTeacher ? `Class Average: ${q.avgScore}` : 'Test your retention and core module knowledge.'}
               </p>
             </div>
@@ -149,17 +164,7 @@ export default function QuizzesTab({
               {isTeacher ? (
                 <button
                   type="button"
-                  style={{
-                    width: '100%',
-                    padding: '8px 14px',
-                    background: '#f3f4f6',
-                    color: '#374151',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    fontSize: '0.85rem',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                  }}
+                  style={subtleBtnStyle}
                   onClick={() => alert(`Reviewing analytics for ${q.title}...`)}
                 >
                   View Class Results
@@ -170,8 +175,8 @@ export default function QuizzesTab({
                   style={{
                     width: '100%',
                     padding: '8px 14px',
-                    background: q.myScore ? '#f3f4f6' : '#14785c',
-                    color: q.myScore ? '#374151' : '#ffffff',
+                    background: q.myScore ? (darkMode ? '#222b3c' : '#f3f4f6') : '#14785c',
+                    color: q.myScore ? (darkMode ? '#e2e8f0' : '#374151') : '#ffffff',
                     border: 'none',
                     borderRadius: '8px',
                     fontSize: '0.85rem',

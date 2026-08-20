@@ -4,9 +4,9 @@ import logo from '../../../assets/classmind-logo.png';
 import { LayoutGrid, Sparkles, LogOut, MessageSquare, Sun, Moon } from 'lucide-react';
 
 export default function Header({
-    userName = "Gelila Sintayehu",
+    userName = "User",
     role = "Student",
-    userInitials = "GS",
+    userInitials = "U",
     currentTab = "classrooms",
     onTabChange,
     onLogout,

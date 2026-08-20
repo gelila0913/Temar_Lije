@@ -199,3 +199,53 @@
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Dark Mode styling overrides for Topic Modal */
+body.dark .topic-modal-content {
+  background-color: #19202e;
+  color: #f3f4f6;
+}
+
+body.dark .topic-modal-title {
+  color: #f3f4f6;
+}
+
+body.dark .topic-modal-subtitle,
+body.dark .topic-invited-text,
+body.dark .topic-input-label {
+  color: #94a3b8;
+}
+
+body.dark .topic-avatar-circle {
+  border-color: #19202e;
+}
+
+body.dark .topic-input-field {
+  background-color: #222b3c;
+  border: 1px solid #232d3f;
+  color: #f3f4f6;
+}
+
+body.dark .topic-input-field:focus {
+  background-color: #222b3c;
+  border-color: #0d8a72;
+}
+
+body.dark .topic-chip {
+  background-color: #222b3c;
+  color: #cbd5e1;
+}
+
+body.dark .topic-chip:hover {
+  background-color: #334155;
+}
+
+body.dark .topic-btn-cancel {
+  background-color: #19202e;
+  border: 1px solid #232d3f;
+  color: #cbd5e1;
+}
+
+body.dark .topic-btn-cancel:hover {
+  background-color: #222b3c;
+}

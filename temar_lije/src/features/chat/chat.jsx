@@ -13,8 +13,8 @@ import StudyInvitation from '../../components/layout/study_invitation/study_invi
 const CURATED_EMOJIS = ['😄', '😂', '👍', '❤️', '🔥', '💪', '✅', '🎨', '💻', '🚀', '📚', '📝', '💡', '👑', '🌟', '👏', '🎉', '👋'];
 
 const USER_PROFILES = {
-    'gs': { name: 'Gelila Sintayehu', initials: 'GS', avatarBg: '#3b82f6', online: true },
-    'at': { name: 'Fanuel Goitom', initials: 'FG', avatarBg: '#8b5cf6', online: true },
+    'gs': { name: 'Sara Gebremedhin', initials: 'SG', avatarBg: '#3b82f6', online: true },
+    'at': { name: 'Abebe Tadesse', initials: 'AT', avatarBg: '#8b5cf6', online: true },
     'yb': { name: 'Yonas Bekele', initials: 'YB', avatarBg: '#0d9488', online: true },
     'mh': { name: 'Meron Haile', initials: 'MH', avatarBg: '#f97316', online: false },
     'ta': { name: 'Tigist Alemu', initials: 'TA', avatarBg: '#a855f7', online: true }
@@ -28,6 +28,7 @@ function Chat({
     onCloseCreateGroupDirectly,
     studyGroups: propStudyGroups,
     setStudyGroups: propSetStudyGroups,
+    classroomId,
     darkMode: propDarkMode,
     setDarkMode: propSetDarkMode
 }) {
@@ -44,9 +45,9 @@ function Chat({
     // ('gs') only when no session exists (dev/demo mode).
     const currentUser = {
         id: authUser?.id || 'gs',
-        name: authUser?.fullName || 'Gelila Sintayehu',
-        initials: (authUser?.fullName || 'GS').trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase() || 'U',
-        avatarBg: '#3b82f6'
+        name: authUser?.fullName || 'Sara Gebremedhin',
+        initials: authUser?.initials || (authUser?.fullName || 'SG').trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase() || 'U',
+        avatarBg: authUser?.avatarBg || '#3b82f6'
     };
     const currentUserRef = useRef(currentUser);
     currentUserRef.current = currentUser;
@@ -607,18 +608,11 @@ function Chat({
         }
     };
 
-    // Mock list of Classrooms (demo mode only — logged-in users start empty)
-    const [classrooms, setClassrooms] = useState(authUser ? [] : [
-        { id: 'flutter', name: 'Flutter', subtitle: 'Samuel: Post your lifecycle qu...', isClassroom: true, time: '1:56 PM' },
-        { id: 'react-native', name: 'React Native', subtitle: 'Mobile development', isClassroom: true, time: '' }
-    ]);
+    // Classrooms list (populated strictly from backend data)
+    const [classrooms, setClassrooms] = useState([]);
 
-    // Study Groups (demo mode only — logged-in users start empty)
-    const [localStudyGroups, setLocalStudyGroups] = useState(authUser ? [] : [
-        { id: 'widget-kings', name: 'Widget Kings 👑', subtitle: 'Abebe: Deadline Sunday midni...', isClassroom: false, time: '2:54 PM', members: ['gs', 'at', 'yb'], icon: '🦋', color: '#6366f1' },
-        { id: 'vd', name: 'vd', subtitle: 'No messages yet', isClassroom: false, time: '', members: ['gs'], icon: '💻', color: '#0d9488' },
-        { id: 'packages', name: 'packages', subtitle: 'No messages yet', isClassroom: false, time: '', members: ['gs'], icon: '📚', color: '#06b6d4' }
-    ]);
+    // Study Groups (populated strictly from backend data)
+    const [localStudyGroups, setLocalStudyGroups] = useState([]);
     const studyGroups = propStudyGroups !== undefined ? propStudyGroups : localStudyGroups;
     const setStudyGroups = propSetStudyGroups !== undefined ? propSetStudyGroups : setLocalStudyGroups;
 
@@ -634,7 +628,7 @@ function Chat({
     // Pick a sensible fallback channel when the active one disappears
     const fallbackGroupId = (excludeId) => {
         const remaining = (studyGroupsRef.current || []).filter(g => g.id !== excludeId);
-        return remaining[0]?.id || (authUser ? '' : 'widget-kings');
+        return remaining[0]?.id || '';
     };
 
     // Keep studyGroupsRef in sync with studyGroups
@@ -642,22 +636,7 @@ function Chat({
         studyGroupsRef.current = studyGroups;
     }, [studyGroups]);
 
-    const [topicsByGroup, setTopicsByGroup] = useState(authUser ? {} : {
-        'widget-kings': [
-            { id: 'general', name: 'General', icon: '#', color: '#64748b', subtitle: 'You: Perfect, that leaves me UI patch and...', time: 'Mon' },
-            { id: 'project', name: 'Project', icon: 'P', color: '#ef4444', subtitle: 'Lala G: In addition to this next to the .jsx file...', time: '9:18 PM' },
-            { id: 'profile', name: 'profile', icon: 'p', color: '#f97316', subtitle: 'Fikrte: Fikrte Gebretsadkan CTC-5776-26', time: 'Fri' },
-            { id: 'resources', name: 'Resources', icon: 'R', color: '#10b981', subtitle: 'Lala G: Here is flutte11e ppt', time: 'Thu' },
-            { id: 'tools', name: 'Tools', icon: 'T', color: '#84cc16', subtitle: 'Lala G: this is base 44, used to give you...', time: 'Tue' },
-            { id: 'daily-challenges', name: 'Daily challenges', icon: 'D', color: '#be185d', subtitle: 'Fikrte: 📷 Photo', time: '8/1/2026' }
-        ],
-        'vd': [
-            { id: 'general', name: 'General', icon: '#', color: '#64748b', subtitle: 'No messages yet', time: '' }
-        ],
-        'packages': [
-            { id: 'general', name: 'General', icon: '#', color: '#64748b', subtitle: 'No messages yet', time: '' }
-        ]
-    });
+    const [topicsByGroup, setTopicsByGroup] = useState({});
 
     // Initialize socket connection and load groups
     useEffect(() => {
@@ -963,7 +942,7 @@ function Chat({
         });
 
         // Fetch persisted study groups
-        apiFetch(`${API_BASE_URL}/chat/groups`)
+        apiFetch(`${API_BASE_URL}/chat/groups${classroomId ? `?classroomId=${encodeURIComponent(classroomId)}` : ''}`)
             .then(res => res.json())
             .then(data => {
                 if (data && Array.isArray(data)) {
@@ -976,25 +955,36 @@ function Chat({
                         return isTopic;
                     });
 
-                    // Merge default classrooms and loaded classrooms
-                    // (demo mode only — logged-in users start empty)
-                    const defaultClassrooms = isAuthedRef.current ? [] : [
-                        { id: 'flutter', name: 'Flutter', subtitle: 'Samuel: Post your lifecycle qu...', isClassroom: true, time: '1:56 PM' },
-                        { id: 'react-native', name: 'React Native', subtitle: 'Mobile development', isClassroom: true, time: '' }
-                    ];
-                    const mergedClassrooms = [...defaultClassrooms];
+                    // Load all classrooms dynamically from localStorage and defaults
+                    let localStoredClassrooms = [];
+                    try {
+                        const raw = localStorage.getItem('temar_classrooms');
+                        if (raw) {
+                            const parsed = JSON.parse(raw);
+                            if (Array.isArray(parsed)) {
+                                localStoredClassrooms = parsed.map(c => ({
+                                    id: (c.title || '').toLowerCase().replace(/\s+/g, '-'),
+                                    name: c.title,
+                                    subtitle: c.subject || c.description || 'Classroom chat',
+                                    isClassroom: true,
+                                    icon: '🏫',
+                                    time: ''
+                                }));
+                            }
+                        }
+                    } catch (e) {}
                     const loadedClassrooms = [];
                     const mappedGroups = [];
 
                     mainGroups.forEach(g => {
-                        const isClassroom = g.icon === '🏫' || g.id === 'flutter' || g.id === 'react-native';
+                        const isClassroom = g.icon === '🏫' || g.id === 'flutter' || g.id.startsWith('class-');
                         const item = {
                             id: g.id,
                             name: g.name,
                             subtitle: g.description || 'No messages yet',
                             isClassroom: isClassroom,
                             time: '',
-                            icon: g.icon || '👥',
+                            icon: isClassroom ? '🏫' : (g.icon || '📚'),
                             color: g.color || '#8b5cf6',
                             members: g.members?.map(m => m.userId) || []
                         };
@@ -1005,14 +995,8 @@ function Chat({
                         }
                     });
 
-                    // Merge default classrooms and loaded classrooms
-                    loadedClassrooms.forEach(lc => {
-                        if (!mergedClassrooms.some(dc => dc.id === lc.id)) {
-                            mergedClassrooms.push(lc);
-                        }
-                    });
-
-                    setClassrooms(mergedClassrooms);
+                    setClassrooms(loadedClassrooms);
+                    setStudyGroups(mappedGroups);
                     
                     const rolesMap = {};
                     data.forEach(g => {
@@ -1269,7 +1253,7 @@ function Chat({
     const activeItem =
         studyGroups.find(g => g.id === activeId) ||
         classrooms.find(c => c.id === activeId) ||
-        { name: 'Select Conversation', subtitle: '' };
+        { id: activeId || '', name: 'Study Group', subtitle: '', icon: '📚', color: '#6366f1', isClassroom: false, members: [] };
 
     const activeMessagesKey = activeItem.isClassroom ? activeId : `${activeId}-${activeTopicId}`;
     const activeMessages = useMemo(() => {
@@ -2261,6 +2245,7 @@ function Chat({
                     description: descText,
                     icon: '🏫',
                     color: '#10b981',
+                    classroomId: classroomId || undefined,
                     memberIds: [currentUser.id]
                 })
             })
@@ -2309,6 +2294,7 @@ function Chat({
                     id: tempId,
                     name: newGroupName,
                     description: descText,
+                    classroomId: classroomId || undefined,
                     memberIds: [currentUser.id]
                 })
             })
@@ -2324,6 +2310,7 @@ function Chat({
                         description: 'General chat room',
                         icon: '#',
                         color: '#64748b',
+                        classroomId: classroomId || undefined,
                         memberIds: []
                     })
                 });
@@ -2358,6 +2345,8 @@ function Chat({
                 alert(`Invite Link: ${inviteLink}`);
             });
     };
+
+
 
 
 
@@ -3686,6 +3675,7 @@ function Chat({
                             description: groupDetails.topic || 'No messages yet',
                             icon: groupDetails.icon || '👥',
                             color: groupDetails.color || '#6366f1',
+                            classroomId: classroomId || undefined,
                             memberIds: memberList
                         })
                     })
@@ -3728,38 +3718,7 @@ function Chat({
                             });
                         }
 
-                        // Auto-populate topics list inside this study group
                         const topicId = (groupDetails.topic || 'StatefulWidget Lifecycle').toLowerCase().replace(/\s+/g, '-');
-                        
-                        // Persist general topic channel to DB
-                        apiFetch(`${API_BASE_URL}/chat/groups`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                id: `${g.id}-general`,
-                                name: 'General',
-                                description: 'General chat room',
-                                icon: '#',
-                                color: '#64748b',
-                                memberIds: []
-                            })
-                        })
-                        .catch(err => console.error('Failed to create general topic:', err));
-
-                        // Persist initial custom topic channel to DB
-                        apiFetch(`${API_BASE_URL}/chat/groups`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                id: `${g.id}-${topicId}`,
-                                name: groupDetails.topic || 'StatefulWidget Lifecycle',
-                                description: `Topic room for ${groupDetails.topic || 'StatefulWidget Lifecycle'}`,
-                                icon: (groupDetails.topic || 'StatefulWidget Lifecycle')[0].toUpperCase(),
-                                color: '#0d9488',
-                                memberIds: []
-                            })
-                        })
-                        .catch(err => console.error('Failed to create topic:', err));
 
                         setTopicsByGroup(prev => ({
                             ...prev,
@@ -4445,6 +4404,7 @@ function Chat({
                             description: `Topic room for ${topicName}`,
                             icon: '#',
                             color: '#0d9488',
+                            classroomId: classroomId || undefined,
                             memberIds: []
                         })
                     })

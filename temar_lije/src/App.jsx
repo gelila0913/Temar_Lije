@@ -117,9 +117,14 @@ function MainApp() {
 
   const currentUser = user
     ? {
+        id: user.id,
         name: user.fullName || 'User',
         role: user.role === 'TEACHER' ? 'Teacher' : 'Student',
         email: user.email,
+        initials: user.initials
+          || (user.fullName || '').trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase()
+          || 'U',
+        avatarBg: user.avatarBg || '#3b82f6',
       }
     : { name: 'User', role: 'Student' };
 

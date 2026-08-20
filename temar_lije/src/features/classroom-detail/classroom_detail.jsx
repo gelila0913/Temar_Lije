@@ -14,7 +14,7 @@ import { useLiveClass } from '../../context/LiveClassContext.jsx';
 
 export default function ClassroomDetail({
   classroom = { title: "Flutter", subject: "Widget · widget structure" },
-  currentUser = { name: "Gelila Sintayehu", role: "Student" },
+  currentUser = { name: "User", role: "Student" },
   onBackToClassrooms,
   onLogout,
   darkMode,
@@ -104,7 +104,7 @@ export default function ClassroomDetail({
         </main>
       ) : currentNavTab === 'study-buddy' ? (
         <main className="classroom-detail-content" style={{ maxWidth: '1280px', margin: '0 auto', padding: '1.5rem 2rem' }}>
-          <StudyBuddy isTeacher={isTeacher} />
+          <StudyBuddy isTeacher={isTeacher} darkMode={darkMode} />
         </main>
       ) : (
         <>
@@ -155,13 +155,14 @@ export default function ClassroomDetail({
                 classId={defaultClassId}
                 isTeacher={isTeacher} 
                 currentUser={currentUser} 
+                darkMode={darkMode}
               />
             )}
             {activeDetailTab === 'members' && (
               isTeacher ? (
-                <TeacherMemberTab darkMode={darkMode} />
+                <TeacherMemberTab darkMode={darkMode} classroom={classroom} currentUser={currentUser} />
               ) : (
-                <MembersTab darkMode={darkMode} setDarkMode={setDarkMode} />
+                <MembersTab darkMode={darkMode} setDarkMode={setDarkMode} classroom={classroom} currentUser={currentUser} />
               )
             )}
           </main>

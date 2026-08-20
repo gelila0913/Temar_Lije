@@ -18,6 +18,7 @@ const TEACHER_PROMPTS = [
 
 export default function StudyBuddy({
   isTeacher = false,
+  darkMode = false,
   initialConversations = DEFAULT_CONVERSATIONS,
   onNewChat,
   onSelectConversation,
@@ -187,8 +188,8 @@ export default function StudyBuddy({
                     maxWidth: '75%',
                     padding: '12px 18px',
                     borderRadius: '14px',
-                    background: msg.sender === 'user' ? '#14785c' : '#f3f4f6',
-                    color: msg.sender === 'user' ? '#ffffff' : '#111827',
+                    background: msg.sender === 'user' ? '#14785c' : (darkMode ? '#222b3c' : '#f3f4f6'),
+                    color: msg.sender === 'user' ? '#ffffff' : (darkMode ? '#e2e8f0' : '#111827'),
                     lineHeight: '1.5',
                     fontSize: '0.925rem',
                     whiteSpace: 'pre-line',

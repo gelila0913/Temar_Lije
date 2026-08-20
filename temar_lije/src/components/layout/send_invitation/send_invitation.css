@@ -217,3 +217,59 @@
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Dark Mode styling overrides for Send Invitation Modal */
+body.dark .send-inv-modal-content {
+  background-color: #19202e;
+  color: #f3f4f6;
+}
+
+body.dark .send-inv-modal-title {
+  color: #f3f4f6;
+}
+
+body.dark .send-inv-modal-subtitle,
+body.dark .send-inv-topic-label {
+  color: #94a3b8;
+}
+
+body.dark .send-inv-topic-card {
+  background-color: #1c2a28;
+  border: 1px solid #233833;
+}
+
+body.dark .send-inv-topic-icon-box {
+  background-color: #243832;
+}
+
+body.dark .send-inv-topic-name {
+  color: #f3f4f6;
+}
+
+body.dark .send-inv-student-row {
+  background-color: #222b3c;
+  border: 1px solid #232d3f;
+}
+
+body.dark .send-inv-student-name {
+  color: #f3f4f6;
+}
+
+body.dark .send-inv-online-dot {
+  border-color: #222b3c;
+}
+
+body.dark .send-inv-online-badge {
+  background-color: #0f3d33;
+  color: #6ee7b7;
+}
+
+body.dark .send-inv-btn-cancel {
+  background-color: #19202e;
+  border: 1px solid #232d3f;
+  color: #cbd5e1;
+}
+
+body.dark .send-inv-btn-cancel:hover {
+  background-color: #222b3c;
+}

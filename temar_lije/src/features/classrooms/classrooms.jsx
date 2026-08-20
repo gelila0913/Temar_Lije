@@ -114,7 +114,7 @@ export default function Classrooms({
 
       {/* Main Content Area */}
       <main className="classrooms-main">
-        {activeTab === 'classrooms' ? (
+        {activeTab === 'classrooms' && (
           <>
             <div className="main-top-bar">
               <div>
@@ -201,7 +201,9 @@ export default function Classrooms({
               </div>
             )}
           </>
-        ) : (
+        )}
+
+        {activeTab === 'study-buddy' && (
           <StudyBuddy isTeacher={isTeacher} />
         )}
       </main>

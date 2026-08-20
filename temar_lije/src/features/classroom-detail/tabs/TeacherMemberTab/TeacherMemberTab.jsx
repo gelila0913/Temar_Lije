@@ -5,7 +5,7 @@ import styles from './TeacherMemberTab.module.css';
 const DEFAULT_MEMBERS = [
   { id: 'seed-fiema', name: 'Fiema Yaregal', joinedAt: '2026-08-06' },
   { id: 'seed-fani', name: 'Fani', joinedAt: '2026-08-06' },
-  { id: 'seed-gelila', name: 'Gelila Sintayehu', joinedAt: '2026-08-07' },
+  { id: 'seed-hana', name: 'Hana Tesfaye', joinedAt: '2026-08-07' },
 ];
 
 function formatJoined(dateString) {

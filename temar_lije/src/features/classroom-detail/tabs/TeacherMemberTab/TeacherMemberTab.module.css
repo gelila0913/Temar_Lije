@@ -224,3 +224,17 @@
     max-width: 46vw;
   }
 }
+
+/* ---------------- Dark Mode ---------------- */
+
+:global(body.dark) .container {
+  --tm-bg: #1c242f;
+  --tm-surface: #19202e;
+  --tm-border: #2a3444;
+  --tm-border-soft: #232d3f;
+  --tm-text-primary: #f3f4f6;
+  --tm-text-secondary: #94a3b8;
+  --tm-text-tertiary: #8c9ba5;
+  --tm-avatar-bg: #242f44;
+  --tm-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
+}

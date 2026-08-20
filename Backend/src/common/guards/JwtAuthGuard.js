@@ -22,4 +22,14 @@ class JwtAuthGuard extends AuthGuard('jwt') {
   }
 }
 
-module.exports = { JwtAuthGuard };
+@Injectable()
+class OptionalJwtAuthGuard extends AuthGuard('jwt') {
+  handleRequest(err, user) {
+    if (err || !user) {
+      return null;
+    }
+    return user;
+  }
+}
+
+module.exports = { JwtAuthGuard, OptionalJwtAuthGuard };

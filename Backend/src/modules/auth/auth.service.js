@@ -36,11 +36,6 @@ class AuthService {
     return bcrypt.hash(plain, BCRYPT_SALT_ROUNDS);
   }
 
-  /**
-   * Generates a high-entropy random token, returning both the raw
-   * value (sent to the user, never stored) and its SHA-256 hash
-   * (stored, never sent).
-   */
   _generateSecureToken(ttlMs) {
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto
@@ -49,6 +44,24 @@ class AuthService {
       .digest('hex');
     const expiresAt = new Date(Date.now() + ttlMs);
     return { rawToken, tokenHash, expiresAt };
+  }
+
+  _deriveInitials(fullName) {
+    const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+    return parts.map((p) => p[0]).join('').slice(0, 2).toUpperCase() || 'U';
+  }
+
+  _toUserProfile(user) {
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      initials: user.fullName
+        ? this._deriveInitials(user.fullName)
+        : user.initials || 'U',
+      avatarBg: user.avatarBg || '#3b82f6',
+    };
   }
 
   async _registerFailedLoginAttempt(user) {
@@ -112,6 +125,8 @@ class AuthService {
       user = await this.prisma.user.create({
         data: {
           fullName: dto.fullName,
+          name: dto.fullName,
+          initials: this._deriveInitials(dto.fullName),
           email: dto.email,
           passwordHash,
           role: dto.role,
@@ -286,12 +301,7 @@ class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: {
-        id: updatedUser.id,
-        fullName: updatedUser.fullName,
-        email: updatedUser.email,
-        role: updatedUser.role,
-      },
+      user: this._toUserProfile(updatedUser),
     };
   }
 
@@ -341,12 +351,7 @@ class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-      },
+      user: this._toUserProfile(user),
     };
   }
 
@@ -388,6 +393,8 @@ class AuthService {
         user = await this.prisma.user.create({
           data: {
             fullName,
+            name: fullName,
+            initials: this._deriveInitials(fullName),
             email,
             googleId,
             role: requestedRole,
@@ -411,12 +418,7 @@ class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-      },
+      user: this._toUserProfile(user),
     };
   }
 
@@ -454,12 +456,7 @@ class AuthService {
     return {
       accessToken,
       refreshToken: newRefreshToken,
-      user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-      },
+      user: this._toUserProfile(user),
     };
   }
 

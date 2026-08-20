@@ -5,7 +5,8 @@ import './send_invitation.css';
 function SendInvitation({
     isOpen,
     onClose,
-    topicName = 'StatefulWidget Lifecycle',
+    groupName = 'Study Group',
+    topicName,
     invitedMembers = ['at', 'yb'],
     userProfiles = {},
     onSend
@@ -19,10 +20,13 @@ function SendInvitation({
 
     const handleSend = () => {
         if (onSend) {
-            onSend(topicName, invitedMembers);
+            onSend(invitedMembers);
         }
         onClose();
     };
+
+    const displayName = topicName || groupName;
+    const label = topicName ? 'Topic' : 'Study Group';
 
     return (
         <div className="send-inv-modal-overlay" onClick={onClose}>
@@ -36,17 +40,17 @@ function SendInvitation({
                 {/* Header Title & Subtitle */}
                 <h2 className="send-inv-modal-title">Send Invitations</h2>
                 <p className="send-inv-modal-subtitle">
-                    You're inviting {invitedUserObjs.length} student{invitedUserObjs.length === 1 ? '' : 's'} to join your study session.
+                    You're inviting {invitedUserObjs.length} student{invitedUserObjs.length === 1 ? '' : 's'} to join your study group.
                 </p>
 
-                {/* Topic Banner Card */}
+                {/* Group / Topic Banner Card */}
                 <div className="send-inv-topic-card">
                     <div className="send-inv-topic-icon-box">
                         <BookOpen size={20} color="#0d6e5b" />
                     </div>
                     <div className="send-inv-topic-info">
-                        <span className="send-inv-topic-label">Topic</span>
-                        <h4 className="send-inv-topic-name">{topicName}</h4>
+                        <span className="send-inv-topic-label">{label}</span>
+                        <h4 className="send-inv-topic-name">{displayName}</h4>
                     </div>
                 </div>
 

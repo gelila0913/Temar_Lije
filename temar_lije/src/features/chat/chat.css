@@ -543,6 +543,10 @@
   background-color: #3b82f6;
 }
 
+.message-avatar.sg {
+  background-color: #3b82f6;
+}
+
 .message-content-wrapper {
   display: flex;
   flex-direction: column;

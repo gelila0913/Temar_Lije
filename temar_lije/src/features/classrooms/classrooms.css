@@ -198,3 +198,31 @@ body.dark .card-code {
 body.dark .btn-new-classroom {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
+
+.btn-card-chat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background-color: #0ea5e9;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.15s ease;
+}
+
+.btn-card-chat:hover {
+  background-color: #0284c7;
+  transform: scale(1.04);
+}
+
+body.dark .btn-card-chat {
+  background-color: #0284c7;
+}
+
+body.dark .btn-card-chat:hover {
+  background-color: #0369a1;
+}

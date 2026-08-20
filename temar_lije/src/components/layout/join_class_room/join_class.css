@@ -138,3 +138,35 @@
   color: #8b9491;
   cursor: not-allowed;
 }
+
+/* Dark Mode styling overrides for Join Classroom Modal */
+body.dark .join-modal-container {
+  background: #19202e;
+}
+
+body.dark .join-modal-title {
+  color: #f3f4f6;
+}
+
+body.dark .join-modal-subtitle {
+  color: #94a3b8;
+}
+
+body.dark .join-modal-close-btn {
+  color: #94a3b8;
+}
+
+body.dark .join-modal-close-btn:hover {
+  background-color: #222b3c;
+  color: #f3f4f6;
+}
+
+body.dark .join-modal-label {
+  color: #cbd5e1;
+}
+
+body.dark .join-modal-input {
+  background-color: #222b3c;
+  border: 1px solid #334155;
+  color: #f3f4f6;
+}
