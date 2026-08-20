@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Search, Moon, Plus, Users, Code, Sparkles, ArrowLeft, Trash2 } from 'lucide-react';
 import './membersTab.css';
 import Chat from '../../../chat/chat.jsx';
+import CreateGroupModal from '../../../../components/members/CreateGroupModal.jsx';
 import { API_BASE_URL } from '../../../../config/constants';
 import { useAuth } from '../../../../context/AuthContext';
 
-export default function MembersTab({ darkMode, setDarkMode }) {
+export default function MembersTab({ darkMode, setDarkMode, classroomId = 'current-class-uuid' }) {
   const { accessToken } = useAuth();
-  const authHeaders = { Authorization: `Bearer ${accessToken}` };
+  const authHeaders = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
   const [activeTab, setActiveTab] = useState('Members');
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -15,44 +16,69 @@ export default function MembersTab({ darkMode, setDarkMode }) {
   const tabs = ['Members', 'Study Groups'];
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/chat/groups`, { headers: authHeaders })
-      .then(res => res.json())
-      .then(data => {
+    // Attempt fetching study groups from GET /study-groups first, fallback to GET /chat/groups
+    fetch(`${API_BASE_URL}/study-groups`, { headers: authHeaders })
+      .then((res) => {
+        if (!res.ok) return fetch(`${API_BASE_URL}/chat/groups`, { headers: authHeaders }).then((r) => r.json());
+        return res.json();
+      })
+      .then((data) => {
         if (data && Array.isArray(data)) {
-          const mainGroups = data.filter(g => {
-            const isTopic = data.some(other => other.id !== g.id && g.id.startsWith(`${other.id}-`));
+          const mainGroups = data.filter((g) => {
+            const isTopic = data.some((other) => other.id !== g.id && g.id.startsWith(`${other.id}-`));
             return !isTopic;
           });
-          const mappedGroups = mainGroups.map(g => ({
+          const mappedGroups = mainGroups.map((g) => ({
             id: g.id,
             name: g.name,
-            subtitle: g.description || 'No messages yet',
+            subtitle: g.subtitle || g.description || `${g.members?.length || 0} members`,
             isClassroom: false,
             time: '',
-            icon: g.icon || '👥',
-            color: g.color || '#8b5cf6',
-            members: g.members?.map(m => m.userId) || []
+            icon: g.icon || '📚',
+            color: g.colorAccent || g.color || '#8b5cf6',
+            members: g.members?.map((m) => m.id || m.userId) || [],
           }));
           setStudyGroups(mappedGroups);
         }
       })
-      .catch(err => console.error('Failed to load study groups in MembersTab:', err));
-  }, []);
+      .catch((err) => console.error('Failed to load study groups in MembersTab:', err));
+  }, [accessToken]);
+
+  const handleGroupCreated = (newGroup) => {
+    if (!newGroup) return;
+    const formatted = {
+      id: newGroup.id,
+      name: newGroup.name,
+      subtitle: newGroup.subtitle || `${newGroup.members?.length || 0} members`,
+      isClassroom: false,
+      time: 'Just now',
+      icon: newGroup.icon || '📚',
+      color: newGroup.colorAccent || newGroup.color || '#6366f1',
+      members: newGroup.members?.map((m) => m.id || m.userId) || [],
+    };
+
+    setStudyGroups((prev) => {
+      if (prev.some((g) => g.id === formatted.id)) return prev;
+      return [formatted, ...prev];
+    });
+    setSelectedGroupId(formatted.id);
+    setShowCreateGroup(false);
+  };
 
   const handleDeleteGroup = (groupId, e) => {
     if (e) e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this study group?')) {
       fetch(`${API_BASE_URL}/chat/groups/${groupId}`, {
         method: 'DELETE',
-        headers: authHeaders
+        headers: authHeaders,
       })
-      .then(() => {
-        setStudyGroups(prev => prev.filter(g => g.id !== groupId));
-        if (selectedGroupId === groupId) {
-          setSelectedGroupId(null);
-        }
-      })
-      .catch(err => console.error('Failed to delete group in MembersTab:', err));
+        .then(() => {
+          setStudyGroups((prev) => prev.filter((g) => g.id !== groupId));
+          if (selectedGroupId === groupId) {
+            setSelectedGroupId(null);
+          }
+        })
+        .catch((err) => console.error('Failed to delete group in MembersTab:', err));
     }
   };
 
@@ -81,9 +107,12 @@ export default function MembersTab({ darkMode, setDarkMode }) {
 
         <div className="sidebar-section">
           <div className="section-header">CLASSROOMS</div>
-          <div 
+          <div
             className={`sidebar-item ${selectedGroupId === null ? 'active' : ''}`}
-            onClick={() => { setSelectedGroupId(null); setActiveTab('Members'); }}
+            onClick={() => {
+              setSelectedGroupId(null);
+              setActiveTab('Members');
+            }}
             style={{ cursor: 'pointer' }}
           >
             <div className="item-icon green-bg">
@@ -98,9 +127,12 @@ export default function MembersTab({ darkMode, setDarkMode }) {
             </div>
           </div>
 
-          <div 
+          <div
             className="sidebar-item"
-            onClick={() => { setSelectedGroupId(null); setActiveTab('Members'); }}
+            onClick={() => {
+              setSelectedGroupId(null);
+              setActiveTab('Members');
+            }}
             style={{ cursor: 'pointer' }}
           >
             <div className="item-icon purple-bg">
@@ -118,19 +150,17 @@ export default function MembersTab({ darkMode, setDarkMode }) {
         <div className="sidebar-section">
           <div className="section-header">
             <span>STUDY GROUPS</span>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="add-group-btn"
-              onClick={() => {
-                setSelectedGroupId('widget-kings');
-                setShowCreateGroup(true);
-              }}
+              onClick={() => setShowCreateGroup(true)}
+              title="Create New Study Group"
             >
               <Plus size={16} />
             </button>
           </div>
           {studyGroups.map((group) => (
-            <div 
+            <div
               key={group.id}
               className={`sidebar-item ${selectedGroupId === group.id ? 'active' : ''}`}
               onClick={() => setSelectedGroupId(group.id)}
@@ -172,19 +202,19 @@ export default function MembersTab({ darkMode, setDarkMode }) {
 
       {/* Main Content Area */}
       <main className="main-classroom-area" style={selectedGroupId !== null ? { overflow: 'hidden' } : {}}>
-        {selectedGroupId !== null ?
-          <Chat 
-            hideSidebar={true} 
-            activeId={selectedGroupId} 
-            setActiveId={setSelectedGroupId} 
-            showCreateGroupDirectly={showCreateGroup} 
+        {selectedGroupId !== null ? (
+          <Chat
+            hideSidebar={true}
+            activeId={selectedGroupId}
+            setActiveId={setSelectedGroupId}
+            showCreateGroupDirectly={false}
             onCloseCreateGroupDirectly={() => setShowCreateGroup(false)}
             studyGroups={studyGroups}
             setStudyGroups={setStudyGroups}
             darkMode={darkMode}
             setDarkMode={setDarkMode}
           />
-         : 
+        ) : (
           <>
             {/* Classroom Title Header */}
             <header className="classroom-header-bar">
@@ -197,171 +227,176 @@ export default function MembersTab({ darkMode, setDarkMode }) {
               </div>
             </header>
 
-        {/* Tab Sub-navigation */}
-        <nav className="classroom-tabs-navigation">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              className={`nav-tab-button ${tab === activeTab ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab}
-            </button>
-          ))}
-        </nav>
-
-        {/* Tab Content Area */}
-        <div className="classroom-tab-content">
-          {activeTab === 'Members' && (
-            <div className="members-tab-view">
-              {/* Start a Study Group Banner */}
-              <div className="study-group-banner">
-                <div className="banner-left">
-                  <div className="banner-icon-circle">
-                    <Users size={20} />
-                  </div>
-                  <div className="banner-text">
-                    <h3 className="banner-title">Start a Study Group</h3>
-                    <p className="banner-desc">Create a private group chat for assignments, projects, or peer study.</p>
-                  </div>
-                </div>
-                <button 
-                  type="button" 
-                  className="new-group-action-btn" 
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  onClick={() => {
-                    setSelectedGroupId('widget-kings');
-                    setShowCreateGroup(true);
-                  }}
+            {/* Tab Sub-navigation */}
+            <nav className="classroom-tabs-navigation">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className={`nav-tab-button ${tab === activeTab ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab)}
                 >
-                  <Plus size={16} /> New Group
+                  {tab}
                 </button>
-              </div>
+              ))}
+            </nav>
 
-              {/* Teachers Section */}
-              <section className="members-section">
-                <h4 className="section-title">TEACHERS (1)</h4>
-                <div className="member-card-row">
-                  <div className="member-avatar sm-bg">SM</div>
-                  <div className="member-details">
-                    <div className="member-name-row">
-                      <span className="member-name-text">Samuel Mekonnen</span>
-                      <span className="teacher-badge-label">Teacher</span>
-                    </div>
-                    <span className="member-status-text">
-                      <span className="online-indicator-dot"></span> online now
-                    </span>
-                  </div>
-                </div>
-              </section>
-
-              {/* Students Online Section */}
-              <section className="members-section">
-                <h4 className="section-title">STUDENTS • ONLINE (5)</h4>
-                <div className="members-list-stack">
-                  <div className="member-card-row">
-                    <div className="member-avatar gs-bg">GS</div>
-                    <div className="member-details">
-                      <div className="member-name-row">
-                        <span className="member-name-text">Gelila Sintayehu</span>
-                        <span className="you-badge-label">(you)</span>
+            {/* Tab Content Area */}
+            <div className="classroom-tab-content">
+              {activeTab === 'Members' && (
+                <div className="members-tab-view">
+                  {/* Start a Study Group Banner */}
+                  <div className="study-group-banner">
+                    <div className="banner-left">
+                      <div className="banner-icon-circle">
+                        <Users size={20} />
                       </div>
-                      <span className="member-status-text">
-                        <span className="online-indicator-dot"></span> online now
-                      </span>
+                      <div className="banner-text">
+                        <h3 className="banner-title">Start a Study Group</h3>
+                        <p className="banner-desc">Create a private group chat for assignments, projects, or peer study.</p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      className="new-group-action-btn"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                      onClick={() => setShowCreateGroup(true)}
+                    >
+                      <Plus size={16} /> New Group
+                    </button>
                   </div>
 
-                  <div className="member-card-row">
-                    <div className="member-avatar at-bg">AT</div>
-                    <div className="member-details">
-                      <span className="member-name-text">Abebe Tadesse</span>
-                      <span className="member-status-text">
-                        <span className="online-indicator-dot"></span> online now
-                      </span>
+                  {/* Teachers Section */}
+                  <section className="members-section">
+                    <h4 className="section-title">TEACHERS (1)</h4>
+                    <div className="member-card-row">
+                      <div className="member-avatar sm-bg">SM</div>
+                      <div className="member-details">
+                        <div className="member-name-row">
+                          <span className="member-name-text">Samuel Mekonnen</span>
+                          <span className="teacher-badge-label">Teacher</span>
+                        </div>
+                        <span className="member-status-text">
+                          <span className="online-indicator-dot"></span> online now
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  </section>
 
-                  <div className="member-card-row">
-                    <div className="member-avatar yb-bg">YB</div>
-                    <div className="member-details">
-                      <span className="member-name-text">Yonas Bekele</span>
-                      <span className="member-status-text">
-                        <span className="online-indicator-dot"></span> online now
-                      </span>
+                  {/* Students Online Section */}
+                  <section className="members-section">
+                    <h4 className="section-title">STUDENTS • ONLINE (5)</h4>
+                    <div className="members-list-stack">
+                      <div className="member-card-row">
+                        <div className="member-avatar gs-bg">GS</div>
+                        <div className="member-details">
+                          <div className="member-name-row">
+                            <span className="member-name-text">Gelila Sintayehu</span>
+                            <span className="you-badge-label">(you)</span>
+                          </div>
+                          <span className="member-status-text">
+                            <span className="online-indicator-dot"></span> online now
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="member-card-row">
+                        <div className="member-avatar at-bg">AT</div>
+                        <div className="member-details">
+                          <span className="member-name-text">Abebe Tadesse</span>
+                          <span className="member-status-text">
+                            <span className="online-indicator-dot"></span> online now
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="member-card-row">
+                        <div className="member-avatar yb-bg">YB</div>
+                        <div className="member-details">
+                          <span className="member-name-text">Yonas Bekele</span>
+                          <span className="member-status-text">
+                            <span className="online-indicator-dot"></span> online now
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="member-card-row">
+                        <div className="member-avatar ta-bg">TA</div>
+                        <div className="member-details">
+                          <span className="member-name-text">Tigist Alemu</span>
+                          <span className="member-status-text">
+                            <span className="online-indicator-dot"></span> online now
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="member-card-row">
+                        <div className="member-avatar ht-bg">HT</div>
+                        <div className="member-details">
+                          <span className="member-name-text">Hana Tesfaye</span>
+                          <span className="member-status-text">
+                            <span className="online-indicator-dot"></span> online now
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </section>
 
-                  <div className="member-card-row">
-                    <div className="member-avatar ta-bg">TA</div>
-                    <div className="member-details">
-                      <span className="member-name-text">Tigist Alemu</span>
-                      <span className="member-status-text">
-                        <span className="online-indicator-dot"></span> online now
-                      </span>
+                  {/* Students Offline Section */}
+                  <section className="members-section">
+                    <h4 className="section-title">STUDENTS • OFFLINE (2)</h4>
+                    <div className="members-list-stack">
+                      <div className="member-card-row offline">
+                        <div className="member-avatar mh-bg">MH</div>
+                        <div className="member-details">
+                          <span className="member-name-text">Meron Haile</span>
+                          <span className="member-status-text">
+                            <span className="offline-indicator-dot"></span> last seen 2h ago
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="member-card-row offline">
+                        <div className="member-avatar dg-bg">DG</div>
+                        <div className="member-details">
+                          <span className="member-name-text">Dawit Girma</span>
+                          <span className="member-status-text">
+                            <span className="offline-indicator-dot"></span> last seen 1d ago
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </section>
+                </div>
+              )}
 
-                  <div className="member-card-row">
-                    <div className="member-avatar ht-bg">HT</div>
-                    <div className="member-details">
-                      <span className="member-name-text">Hana Tesfaye</span>
-                      <span className="member-status-text">
-                        <span className="online-indicator-dot"></span> online now
-                      </span>
+              {activeTab === 'Study Groups' && (
+                <div className="members-tab-view">
+                  <div className="study-group-banner">
+                    <div className="banner-left">
+                      <div className="banner-icon-circle">
+                        <Sparkles size={20} />
+                      </div>
+                      <div className="banner-text">
+                        <h3 className="banner-title">Widget Kings 👑</h3>
+                        <p className="banner-desc">4 members • Active peer study group for Flutter assignments.</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </section>
-
-              {/* Students Offline Section */}
-              <section className="members-section">
-                <h4 className="section-title">STUDENTS • OFFLINE (2)</h4>
-                <div className="members-list-stack">
-                  <div className="member-card-row offline">
-                    <div className="member-avatar mh-bg">MH</div>
-                    <div className="member-details">
-                      <span className="member-name-text">Meron Haile</span>
-                      <span className="member-status-text">
-                        <span className="offline-indicator-dot"></span> last seen 2h ago
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="member-card-row offline">
-                    <div className="member-avatar dg-bg">DG</div>
-                    <div className="member-details">
-                      <span className="member-name-text">Dawit Girma</span>
-                      <span className="member-status-text">
-                        <span className="offline-indicator-dot"></span> last seen 1d ago
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </section>
+              )}
             </div>
-          )}
+          </>
+        )}
+      </main>
 
-          {activeTab === 'Study Groups' && (
-            <div className="members-tab-view">
-              <div className="study-group-banner">
-                <div className="banner-left">
-                  <div className="banner-icon-circle">
-                    <Sparkles size={20} />
-                  </div>
-                  <div className="banner-text">
-                    <h3 className="banner-title">Widget Kings 👑</h3>
-                    <p className="banner-desc">4 members • Active peer study group for Flutter assignments.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </>
-    }
-  </main>
+      {/* Render CreateGroupModal using React Portal at Document Root */}
+      <CreateGroupModal
+        isOpen={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+        onGroupCreated={handleGroupCreated}
+        classroomId={classroomId}
+      />
     </div>
   );
 }
