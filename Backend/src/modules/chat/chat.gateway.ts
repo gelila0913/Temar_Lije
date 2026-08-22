@@ -111,12 +111,17 @@ export class ChatGateway {
     const { roomId } = data || {};
     if (!roomId) return;
 
-    client.join(roomId);
-
     const userId = this._userId(client);
     if (userId) {
       await this.chatService.ensureUserExists(userId);
+      const isAllowed = await this.chatService.canUserAccessRoom(roomId, userId);
+      if (!isAllowed) {
+        client.emit('chatError', { message: 'Access denied: You are not a member of this study group.' });
+        return;
+      }
     }
+
+    client.join(roomId);
   }
 
   @SubscribeMessage('leaveRoom')
@@ -140,6 +145,12 @@ export class ChatGateway {
     if (!roomId || !senderId) return;
 
     try {
+      const isAllowed = await this.chatService.canUserAccessRoom(roomId, senderId);
+      if (!isAllowed) {
+        client.emit('chatError', { message: 'Access denied: You are not a member of this study group.' });
+        return;
+      }
+
       const savedMsg = await this.chatService.saveMessage(roomId, senderId, {
         text: data.text,
         image: data.image,

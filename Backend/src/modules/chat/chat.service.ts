@@ -976,9 +976,57 @@ export class ChatService {
     return { parentGroupId: trimmed, topicId: 'general', normalizedRoomId: `${trimmed}-general` };
   }
 
+  /**
+   * Checks if a user is authorized to access a given room / study group.
+   * Private study groups are strictly restricted to invited members and group creators.
+   */
+  async canUserAccessRoom(roomId: string, userId: string): Promise<boolean> {
+    if (!roomId || !userId) return false;
+    const { parentGroupId } = this.parseChannelRoom(roomId);
+    const parentGroupUuid = toUuid(parentGroupId);
+    const userUuid = toUuid(userId);
+
+    const group = await this.db.studyGroup.findUnique({
+      where: { id: parentGroupUuid },
+      include: { members: true },
+    }).catch(() => null);
+
+    if (!group) {
+      // Check if it corresponds to a classroom general channel
+      const classroom = await this.db.classroom.findFirst({
+        where: {
+          OR: [
+            { id: parentGroupUuid },
+            { inviteCode: parentGroupId },
+            { title: { equals: parentGroupId, mode: 'insensitive' } },
+          ],
+        },
+        include: { members: true, teachers: true },
+      }).catch(() => null);
+
+      if (classroom) {
+        const isClassStudent = ((classroom as any).members || []).some((m: any) => m.userId === userUuid);
+        const isClassTeacher = ((classroom as any).teachers || []).some((t: any) => t.userId === userUuid) || classroom.createdById === userUuid;
+        return isClassStudent || isClassTeacher;
+      }
+      return true;
+    }
+
+    // It is a study group: ONLY enrolled group members or the creator can view/access
+    const isMember = (group.members || []).some((m: any) => m.userId === userUuid) || group.createdById === userUuid;
+    return isMember;
+  }
+
   async getChatHistory(groupId: string, userId?: string) {
     const { parentGroupId, topicId, normalizedRoomId } = this.parseChannelRoom(groupId);
     const parentGroupUuid = toUuid(parentGroupId);
+
+    if (userId) {
+      const allowed = await this.canUserAccessRoom(groupId, userId);
+      if (!allowed) {
+        throw new ForbiddenException('Access denied. You are not a member of this private study group.');
+      }
+    }
 
     const messages = await this.db.chatMessage.findMany({
       where: {
@@ -1086,7 +1134,11 @@ export class ChatService {
       ) || existingGroup.createdById === senderUuid || existingGroup.createdById === senderId;
 
       if (!isMember) {
-        if (existingGroup.classroomId) {
+        const isClassroomChannel = existingGroup.name.toLowerCase() === 'flutter' ||
+                                  existingGroup.name.toLowerCase() === 'general' ||
+                                  existingGroup.id === toUuid(existingGroup.classroomId || '');
+
+        if (existingGroup.classroomId && isClassroomChannel) {
           const isClassMember = await this.db.classroomMember.findUnique({
             where: {
               classroomId_userId: {
@@ -1113,16 +1165,11 @@ export class ChatService {
               },
             }).catch(() => {});
           } else {
-            throw new ForbiddenException('You must be a member of this classroom/group to send messages.');
+            throw new ForbiddenException('You must be a member of this classroom to send messages.');
           }
         } else {
-          await this.db.studyGroupMember.create({
-            data: {
-              studyGroupId: existingGroup.id,
-              userId: senderUuid,
-              role: 'MEMBER',
-            },
-          }).catch(() => {});
+          // Strictly reject non-members from private study groups
+          throw new ForbiddenException('Access denied. You are not a member of this private study group.');
         }
       }
 

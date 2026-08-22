@@ -1073,10 +1073,14 @@ function Chat({
             .then(res => res.json())
             .then(data => {
                 if (data && Array.isArray(data)) {
-                    // Topics have icon 'topic:...' or isTopic flag and must never be treated as standalone groups
                     const mainGroups = data.filter(g => {
                         const isTopic = g.isTopic || (g.icon && g.icon.startsWith('topic:')) || (g.id && g.id.includes('-') && !g.id.includes('6666') && data.some(other => other.id !== g.id && g.id.startsWith(`${other.id}-`)));
-                        return !isTopic;
+                        if (isTopic) return false;
+                        const isClassroom = g.icon === '🏫' || g.id === 'flutter' || g.id.startsWith('class-');
+                        if (isClassroom) return true;
+                        const curId = currentUserRef.current?.id || effectiveUserId;
+                        const memberIds = (g.members || []).map(m => (typeof m === 'object' ? (m.userId || m.id) : m));
+                        return memberIds.includes(curId) || g.ownerId === curId || g.createdById === curId;
                     });
 
                     const loadedClassrooms = [];

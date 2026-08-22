@@ -10,6 +10,7 @@ import {
   Req,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -17,6 +18,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
+import { JwtAuthGuard } from '../../common/guards/JwtAuthGuard';
 
 const ALLOWED_EXTENSIONS = new Set([
   '.jpg', '.jpeg', '.png', '.gif', '.webp',
@@ -34,6 +36,7 @@ const ALLOWED_MIME_PREFIXES = [
   'application/octet-stream',
 ];
 
+@UseGuards(JwtAuthGuard)
 @Controller('chat')
 export class ChatController {
   constructor(

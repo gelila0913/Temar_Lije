@@ -165,7 +165,11 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
         if (data && Array.isArray(data)) {
           const mainGroups = data.filter(g => {
             const isTopic = g.isTopic || (g.icon && g.icon.startsWith('topic:')) || (g.id && g.id.includes('-') && !g.id.includes('6666') && data.some(other => other.id !== g.id && g.id.startsWith(`${other.id}-`)));
-            return !isTopic;
+            if (isTopic) return false;
+            // Privacy check: Students & Teachers only see groups they belong to
+            const memberList = (g.members || []).map(m => (typeof m === 'object' ? (m.userId || m.id) : m));
+            const isMember = memberList.includes(effectiveUserId) || g.ownerId === effectiveUserId || g.createdById === effectiveUserId;
+            return isMember;
           });
           const mappedGroups = mainGroups.map(g => ({
             id: g.id,
@@ -175,7 +179,7 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
             time: '',
             icon: g.icon || '📚',
             color: g.color || '#6366f1',
-            members: g.members?.map(m => m.userId) || []
+            members: (g.members || []).map(m => (typeof m === 'object' ? (m.userId || m.id) : m))
           }));
           setStudyGroups(mappedGroups);
         }
