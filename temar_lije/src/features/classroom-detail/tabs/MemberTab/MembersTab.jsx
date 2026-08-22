@@ -408,29 +408,32 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
       {/* Main Content Area */}
       <main className="main-classroom-area" style={selectedGroupId !== null ? { overflow: 'hidden' } : {}}>
         {selectedGroupId !== null ? (
-          <Chat 
-            hideSidebar={true} 
-            activeId={selectedGroupId} 
-            setActiveId={setSelectedGroupId} 
-            classroomId={classroomId}
-            studyGroups={studyGroups}
-            setStudyGroups={setStudyGroups}
-            darkMode={darkMode}
-            setDarkMode={setDarkMode}
-          />
+          <>
+            <div className="chat-back-bar">
+              <button 
+                type="button" 
+                className="chat-back-btn" 
+                onClick={() => setSelectedGroupId(null)}
+              >
+                ← Back to Overview
+              </button>
+              <span style={{ fontWeight: 600, fontSize: '14px', color: darkMode ? '#f8fafc' : '#0f172a' }}>
+                {studyGroups.find(g => g.id === selectedGroupId)?.name || `${classroom?.title || 'Classroom'} Discussion`}
+              </span>
+            </div>
+            <Chat 
+              hideSidebar={true} 
+              activeId={selectedGroupId} 
+              setActiveId={setSelectedGroupId} 
+              classroomId={classroomId}
+              studyGroups={studyGroups}
+              setStudyGroups={setStudyGroups}
+              darkMode={darkMode}
+              setDarkMode={setDarkMode}
+            />
+          </>
         ) : (
           <>
-            {/* Classroom Title Header */}
-            <header className="classroom-header-bar">
-              <div className="classroom-header-icon">
-                <Code size={20} />
-              </div>
-              <div className="classroom-header-info">
-                <h1 className="classroom-title-text">{classroom?.title || 'Flutter'}</h1>
-                <p className="classroom-subtitle-text">{classroom?.subject || 'Widget • widget structure'}</p>
-              </div>
-            </header>
-
             {/* Tab Sub-navigation */}
             <nav className="classroom-tabs-navigation">
               {tabs.map((tab) => (
@@ -440,7 +443,7 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
                   className={`nav-tab-button ${tab === activeTab ? 'active' : ''}`}
                   onClick={() => setActiveTab(tab)}
                 >
-                  {tab}
+                  {tab === 'Members' ? `👥 Members (${realMembers.length + (teachers.length || 1)})` : `📚 Study Groups (${studyGroups.length})`}
                 </button>
               ))}
             </nav>
@@ -597,14 +600,45 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
                     </button>
                   </div>
 
+                  {/* Class General Chat Card */}
+                  <div 
+                    onClick={() => {
+                      const classSlug = (classroom?.title || 'flutter').toLowerCase().replace(/\s+/g, '-');
+                      setSelectedGroupId(classSlug);
+                    }}
+                    style={{
+                      padding: '16px 20px',
+                      borderRadius: '12px',
+                      border: '1px solid #d1fae5',
+                      backgroundColor: '#f0fdf4',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'all 0.15s ease',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{ width: '42px', height: '42px', borderRadius: '10px', backgroundColor: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Code size={22} />
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#065f46' }}>{classroom?.title || 'Classroom'} (General Discussion)</h4>
+                        <p style={{ margin: '2px 0 0 0', fontSize: '12.5px', color: '#047857' }}>Main class chat, announcements & voice sessions</p>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '13px', color: '#059669', fontWeight: 700, whiteSpace: 'nowrap' }}>Open Chat →</span>
+                  </div>
+
                   {studyGroups.length === 0 ? (
-                    <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
-                      <Users size={40} style={{ margin: '0 auto 12px auto', color: '#94a3b8', display: 'block' }} />
-                      <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: 600, color: 'var(--text-main, #1e293b)' }}>No study groups created yet</h4>
-                      <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>Click "New Group" above to start your first peer study session.</p>
+                    <div style={{ padding: '30px 20px', textAlign: 'center', color: '#64748b' }}>
+                      <Users size={36} style={{ margin: '0 auto 10px auto', color: '#94a3b8', display: 'block' }} />
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 600, color: 'var(--text-main, #1e293b)' }}>No peer study groups yet</h4>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Click "New Group" above to start a small team discussion with classmates.</p>
                     </div>
                   ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginTop: '20px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
                       {studyGroups.map(group => (
                         <div 
                           key={group.id}
