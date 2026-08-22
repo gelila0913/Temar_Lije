@@ -2,7 +2,6 @@ import React from 'react';
 import { useLiveClass } from '../../context/LiveClassContext';
 import LiveClassroomContainer from './LiveClassroomContainer';
 import {
-  Minimize2,
   Maximize2,
   PhoneOff,
   Radio,

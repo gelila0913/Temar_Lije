@@ -6,8 +6,8 @@ import './MaterialsTab.css';
 export default function MaterialsTab({
   classId = '66666666-6666-4666-8666-666666666666',
   isTeacher = false,
-  currentUser,
-  onUploadMaterial,
+  _currentUser,
+  _onUploadMaterial,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [materials, setMaterials] = useState([]);

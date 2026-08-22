@@ -1,7 +1,7 @@
 import React from 'react';
 import './header.css';
-import logo from '../../../assets/classmind-logo.png';
-import { LayoutGrid, Sparkles, LogOut, MessageSquare, Sun, Moon } from 'lucide-react';
+import logo from '../../../assets/temar-lije-logo.png';
+import { LayoutGrid, Sparkles, LogOut, Sun, Moon } from 'lucide-react';
 
 export default function Header({
     userName = "User",
@@ -17,8 +17,8 @@ export default function Header({
         <header className="classmind-header">
             <div className="header-left">
                 <div className="logo-container">
-                    <img src={logo} alt="ClassMind-Logo" className="logo-image" />
-                    <span className="logo-text">ClassMind</span>
+                    <img src={logo} alt="Temar Lije Logo" className="logo-image" />
+                    <span className="logo-text">Temar Lije</span>
                 </div>
 
 

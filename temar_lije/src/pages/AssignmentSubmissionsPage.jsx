@@ -16,9 +16,9 @@ import styles from './AssignmentSubmissionsPage.module.css';
 
 export default function AssignmentSubmissionsPage({
   assignmentId,
-  classId,
+  _classId,
   onBack,
-  currentUser,
+  _currentUser,
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

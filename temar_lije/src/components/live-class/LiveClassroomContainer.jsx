@@ -9,18 +9,15 @@ import {
   AlertTriangle,
   Zap,
   Loader2,
-  RefreshCw,
   Minimize2,
+  ExternalLink,
 } from 'lucide-react';
 import WhiteboardCanvas from './WhiteboardCanvas';
 import AudioStreamer from './AudioStreamer';
 import { useLiveClass } from '../../context/LiveClassContext';
 import styles from './LiveClassroomContainer.module.css';
 
-const API_BASE_URL =
-  import.meta.env?.VITE_WS_URL ||
-  import.meta.env?.VITE_API_URL ||
-  'http://localhost:3000';
+import { getSocketUrl } from '../../config/constants';
 
 /**
  * React ErrorBoundary wrapper to capture unexpected Jitsi SDK / iframe load errors
@@ -78,12 +75,11 @@ export default function LiveClassroomContainer({
   onClose,
   isDocked = false,
 }) {
-  const liveContext = useLiveClass ? useLiveClass() : null;
+  const liveContext = useLiveClass();
   const contextSocket = liveContext?.liveSocket;
 
   // ---- Network & Mode States ----
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
-  const [socketConnected, setSocketConnected] = useState(Boolean(contextSocket?.connected));
   const [latencyMs, setLatencyMs] = useState(null);
 
   // 'AUTO' | 'JITSI' | 'FALLBACK'
@@ -115,7 +111,7 @@ export default function LiveClassroomContainer({
 
     if (!socket) {
       const token = localStorage.getItem('temar_token');
-      socket = io(`${API_BASE_URL}/live-class`, {
+      socket = io(getSocketUrl('/live-class'), {
         transports: ['websocket', 'polling'],
         auth: { token },
         query: { classId },
@@ -288,6 +284,17 @@ export default function LiveClassroomContainer({
             >
               Local Fallback
             </button>
+            <a
+              href={`https://${jitsiDomain}/${jitsiRoomName}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.selectButton}
+              title="Open video call in full HTTPS window"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', color: 'inherit' }}
+            >
+              <ExternalLink size={13} />
+              <span>Open Tab</span>
+            </a>
           </div>
 
           {!isDocked && liveContext?.setIsMinimized && (

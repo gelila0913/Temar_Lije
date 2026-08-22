@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import React from 'react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import styles from './Tittle.module.css';
 
 const TABS = [
@@ -17,6 +17,8 @@ export const ClassroomHeader = ({
   activeTab = "materials",
   onTabChange,
   onBack,
+  isTeacher,
+  onDelete,
 }) => {
   const handleTabClick = (tabId) => {
     if (onTabChange) onTabChange(tabId);
@@ -24,10 +26,37 @@ export const ClassroomHeader = ({
 
   return (
     <div className={styles.headerContainer}>
-      {/* Back button */}
-      <button className={styles.backButton} onClick={onBack}>
-        <ArrowLeft size={16} className={styles.backIcon} /> Classrooms
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
+        {/* Back button */}
+        <button className={styles.backButton} onClick={onBack}>
+          <ArrowLeft size={16} className={styles.backIcon} /> Classrooms
+        </button>
+
+        {isTeacher && onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Delete this classroom"
+            style={{
+              backgroundColor: '#fee2e2',
+              color: '#dc2626',
+              border: '1px solid #fca5a5',
+              borderRadius: '8px',
+              padding: '6px 14px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Trash2 size={14} />
+            <span>Delete Classroom</span>
+          </button>
+        )}
+      </div>
 
       {/* Classroom Title and Subtitle */}
       <h1 className={styles.title}>{title}</h1>

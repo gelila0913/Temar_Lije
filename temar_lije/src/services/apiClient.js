@@ -1,4 +1,8 @@
-const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL =
+  import.meta.env?.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.location.port === '5173'
+    ? 'http://localhost:3000'
+    : '/api');
 
 function getAuthHeaders(extraHeaders = {}) {
   const token = localStorage.getItem('temar_token');
@@ -16,7 +20,75 @@ export function getFileUrl(path) {
   if (!path) return '';
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${API_BASE_URL}${cleanPath}`;
+  if (cleanPath.startsWith('/uploads/')) {
+    return cleanPath;
+  }
+  if (cleanPath.startsWith('/api/uploads/')) {
+    return cleanPath.replace('/api', '');
+  }
+  return `/uploads${cleanPath}`;
+}
+
+// ---- CLASSROOMS API ----
+export async function getClassrooms() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/classrooms`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.warn('Failed to fetch classrooms:', err);
+    return [];
+  }
+}
+
+export async function createClassroom(payload) {
+  const res = await fetch(`${API_BASE_URL}/classrooms`, {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to create classroom');
+  }
+  return await res.json();
+}
+
+export async function joinClassroom(code) {
+  const res = await fetch(`${API_BASE_URL}/classrooms/join`, {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to join classroom');
+  }
+  return await res.json();
+}
+
+export async function getClassroomDetails(classId) {
+  const res = await fetch(`${API_BASE_URL}/classrooms/${classId}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to load classroom details');
+  }
+  return await res.json();
+}
+
+export async function deleteClassroom(classId) {
+  const res = await fetch(`${API_BASE_URL}/classrooms/${classId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    throw new Error('Failed to delete classroom');
+  }
+  return await res.json();
 }
 
 // ---- MATERIALS API ----
@@ -39,6 +111,41 @@ export async function getMaterials(classId) {
     console.warn('Failed to fetch materials:', err);
     return [];
   }
+}
+
+export async function getClassroomMembers(classId) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/classrooms/${classId}/members`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) return { classroomId: classId, teachers: [], students: [], members: [] };
+    return await res.json();
+  } catch (err) {
+    console.warn('Failed to fetch classroom members:', err);
+    return { classroomId: classId, teachers: [], students: [], members: [] };
+  }
+}
+
+export async function addClassroomMember(classId, studentIdOrEmail) {
+  const res = await fetch(`${API_BASE_URL}/classrooms/${classId}/members`, {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ studentId: studentIdOrEmail }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to add classroom member');
+  }
+  return res.json();
+}
+
+export async function removeClassroomMember(classId, memberId) {
+  const res = await fetch(`${API_BASE_URL}/classrooms/${classId}/members/${memberId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to remove member');
+  return await res.json();
 }
 
 export async function uploadMaterial(formData) {
@@ -125,6 +232,19 @@ export async function deleteAssignment(assignmentId) {
 }
 
 // ---- ATTENDANCE API ----
+export async function createAttendanceSession(classId, topic) {
+  const res = await fetch(`${API_BASE_URL}/attendance/session`, {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ classId, topic }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to create attendance session');
+  }
+  return res.json();
+}
+
 export async function recordCheckIn(classId, studentId) {
   const res = await fetch(`${API_BASE_URL}/attendance/check-in`, {
     method: 'POST',
@@ -139,11 +259,29 @@ export async function recordCheckIn(classId, studentId) {
 }
 
 export async function getAttendanceReport(classId) {
-  const res = await fetch(`${API_BASE_URL}/attendance/class/${classId}/report`, {
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error('Failed to fetch attendance report');
-  return res.json();
+  try {
+    let res = await fetch(`${API_BASE_URL}/attendance/${classId}/report`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      res = await fetch(`${API_BASE_URL}/attendance/class/${classId}/report`, {
+        headers: getAuthHeaders(),
+      });
+    }
+    if (!res.ok) {
+      return {
+        summary: { totalEnrolled: 0, PRESENT: 0, LATE: 0, ABSENT: 0 },
+        records: { PRESENT: [], LATE: [], ABSENT: [] },
+      };
+    }
+    return await res.json();
+  } catch (err) {
+    console.warn('Failed to fetch attendance report:', err);
+    return {
+      summary: { totalEnrolled: 0, PRESENT: 0, LATE: 0, ABSENT: 0 },
+      records: { PRESENT: [], LATE: [], ABSENT: [] },
+    };
+  }
 }
 
 // ---- LIVE CLASS API ----
@@ -204,6 +342,19 @@ export async function getQuizzes(classId) {
     console.warn('Failed to fetch quizzes:', err);
     return [];
   }
+}
+
+export async function generateAIQuiz(params) {
+  const res = await fetch(`${API_BASE_URL}/quizzes/generate-ai`, {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to generate AI quiz');
+  }
+  return res.json();
 }
 
 export async function createQuiz(classId, quizPayload) {
@@ -301,3 +452,4 @@ export async function deleteQuiz(quizId) {
   }
   return res.json();
 }
+

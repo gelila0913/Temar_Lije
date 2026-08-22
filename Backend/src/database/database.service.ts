@@ -1,29 +1,5 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
 
-/**
- * DatabaseService provides Prisma Client instance injected throughout the app.
- */
 @Injectable()
-export class DatabaseService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
-  constructor() {
-    super();
-  }
-
-  /**
-   * Connects to the database when the module initializes.
-   */
-  async onModuleInit() {
-    await this.$connect();
-  }
-
-  /**
-   * Disconnects from the database when the module is destroyed.
-   */
-  async onModuleDestroy() {
-    await this.$disconnect();
-  }
-}
+export class DatabaseService extends PrismaService {}

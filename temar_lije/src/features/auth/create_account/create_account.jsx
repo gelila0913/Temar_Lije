@@ -28,6 +28,7 @@ const GoogleIcon = ({ className }) => (
 export default function CreateAccount({ onCreateAccount, onGoogleSignIn, onSwitchToSignIn }) {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('student');
+  const [classroomCode, setClassroomCode] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -88,7 +89,7 @@ export default function CreateAccount({ onCreateAccount, onGoogleSignIn, onSwitc
       setIsSubmitting(true);
       try {
         if (onCreateAccount) {
-          await onCreateAccount({ fullName, role, email, password });
+          await onCreateAccount({ fullName, role, email, password, classroomCode: classroomCode.trim() });
         } else {
           await new Promise((resolve) => setTimeout(resolve, 900));
         }
@@ -98,7 +99,7 @@ export default function CreateAccount({ onCreateAccount, onGoogleSignIn, onSwitc
         setIsSubmitting(false);
       }
     },
-    [busy, fullName, role, email, password, passedCount, onCreateAccount]
+    [busy, fullName, role, email, password, classroomCode, passedCount, onCreateAccount]
   );
 
   const handleGoogleSignIn = useCallback(() => {
@@ -176,6 +177,23 @@ export default function CreateAccount({ onCreateAccount, onGoogleSignIn, onSwitc
               Teacher
             </button>
           </div>
+
+          {role === 'student' && (
+            <>
+              <label className={styles.fieldLabel} htmlFor="ca-classroom">
+                Classroom Code <span style={{ fontWeight: 400, color: '#64748b', fontSize: '12px' }}>(Optional - choose classroom)</span>
+              </label>
+              <input
+                id="ca-classroom"
+                type="text"
+                placeholder="e.g. REACT-101 (or join from dashboard later)"
+                className={styles.textInput}
+                value={classroomCode}
+                onChange={(e) => setClassroomCode(e.target.value)}
+                disabled={busy}
+              />
+            </>
+          )}
 
           <label className={styles.fieldLabel} htmlFor="ca-email">
             Email

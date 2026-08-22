@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { Calendar, Trash2, Loader2, Upload, Link, FileText, CheckCircle, CheckCircle2, Megaphone } from 'lucide-react';
-import { getAssignments, createAssignment, submitAssignment, getSubmissions, getFileUrl } from '../../../../services/apiClient';
+import { Trash2, Loader2, FileText, CheckCircle, CheckCircle2, Megaphone, Eye, X, ExternalLink } from 'lucide-react';
+import { getAssignments, createAssignment, submitAssignment, getSubmissions, getFileUrl, deleteAssignment } from '../../../../services/apiClient';
 import styles from './AssignmentsTab.module.css';
 
 function formatDeadline(deadline) {
@@ -38,6 +38,9 @@ export default function AssignmentsTab({
   const [isSubmittingWork, setIsSubmittingWork] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState('');
   const [submissionError, setSubmissionError] = useState('');
+
+  // Student view my submission modal state
+  const [viewingMySubmission, setViewingMySubmission] = useState(null);
 
   // Teacher submissions modal state
   const [viewingSubmissionsAssignment, setViewingSubmissionsAssignment] = useState(null);
@@ -158,6 +161,7 @@ export default function AssignmentsTab({
       await loadAssignments();
     } catch (err) {
       setSubmissionError(err.message || 'Submission failed.');
+      await loadAssignments();
     } finally {
       setIsSubmittingWork(false);
     }
@@ -178,63 +182,77 @@ export default function AssignmentsTab({
               <span>Announce assignment</span>
             </button>
           ) : (
-            <form className={styles.announceFormCard} onSubmit={handleAnnounceSubmit}>
-              <input
-                type="text"
-                className={styles.titleInput}
-                placeholder="Assignment title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                disabled={isAnnouncing}
-                required
-              />
+            <form onSubmit={handleAnnounceSubmit} className={styles.announceForm}>
+              <div className={styles.formRow}>
+                <label className={styles.fieldLabel} htmlFor="assignment-title">
+                  Title
+                </label>
+                <input
+                  id="assignment-title"
+                  type="text"
+                  className={styles.titleInput}
+                  placeholder="e.g. Essay #1 - React Hooks Deep Dive"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  disabled={isAnnouncing}
+                />
+              </div>
 
-              <textarea
-                className={styles.descriptionInput}
-                placeholder="What should students do?"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                disabled={isAnnouncing}
-              />
+              <div className={styles.formRow}>
+                <label className={styles.fieldLabel} htmlFor="assignment-desc">
+                  Instructions
+                </label>
+                <textarea
+                  id="assignment-desc"
+                  className={styles.textarea}
+                  placeholder="Share details, guidelines, or attach references..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  disabled={isAnnouncing}
+                />
+              </div>
 
-              <div className={styles.formBottomRow}>
-                <div className={styles.deadlineGroup}>
-                  <span className={styles.deadlineLabel}>
-                    <Calendar size={15} /> Deadline
-                  </span>
-                  <input
-                    type="datetime-local"
-                    className={styles.dateInput}
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                    disabled={isAnnouncing}
-                  />
-                </div>
+              <div className={styles.formRow}>
+                <label className={styles.fieldLabel} htmlFor="assignment-deadline">
+                  Due date (optional)
+                </label>
+                <input
+                  id="assignment-deadline"
+                  type="date"
+                  className={styles.deadlineInput}
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  disabled={isAnnouncing}
+                />
+              </div>
 
-                <div className={styles.actionButtonsRow}>
-                  <button
-                    type="submit"
-                    className={styles.btnAnnounce}
-                    disabled={isAnnouncing}
-                  >
-                    {isAnnouncing ? (
-                      <>
-                        <Loader2 className={`${styles.spinner} animate-spin`} />
-                        <span>Announcing…</span>
-                      </>
-                    ) : (
-                      <span>Announce</span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.btnCancel}
-                    onClick={() => setShowAnnounceForm(false)}
-                    disabled={isAnnouncing}
-                  >
-                    Cancel
-                  </button>
-                </div>
+              <div className={styles.formActions}>
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={() => {
+                    setShowAnnounceForm(false);
+                    setTitle('');
+                    setDescription('');
+                    setDeadline('');
+                    setAnnounceError('');
+                  }}
+                  disabled={isAnnouncing}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={styles.submitButton}
+                  disabled={isAnnouncing}
+                >
+                  {isAnnouncing ? (
+                    <Loader2 className={`${styles.spinner} animate-spin`} />
+                  ) : (
+                    <span>Post Assignment</span>
+                  )}
+                </button>
               </div>
             </form>
           )}
@@ -266,11 +284,32 @@ export default function AssignmentsTab({
             const count = assignment._count?.submissions ?? assignment.submissionCount ?? 0;
             const dueDateObj = assignment.dueDate || assignment.deadline;
             const isPastDeadline = dueDateObj ? new Date() > new Date(dueDateObj) : false;
+            const isSubmitted = assignment.hasSubmitted || !!assignment.mySubmission;
 
             return (
               <li key={assignment.id} className={styles.assignmentCard}>
                 <div className={styles.assignmentHeader}>
-                  <h3 className={styles.assignmentTitle}>{assignment.title}</h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h3 className={styles.assignmentTitle}>{assignment.title}</h3>
+                    {!isTeacher && isSubmitted && (
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          backgroundColor: '#dcfce7',
+                          color: '#15803d',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <CheckCircle2 size={12} /> Assignment Submitted
+                      </span>
+                    )}
+                  </div>
+
                   {isTeacher && (
                     <button
                       type="button"
@@ -316,7 +355,26 @@ export default function AssignmentsTab({
                     </button>
                   ) : (
                     <div style={{ marginTop: '8px' }}>
-                      {isPastDeadline ? (
+                      {isSubmitted ? (
+                        <button
+                          type="button"
+                          onClick={() => setViewingMySubmission(assignment)}
+                          style={{
+                            backgroundColor: '#f1f5f9',
+                            color: '#0f172a',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            padding: '6px 14px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          <Eye size={14} /> View My Submission
+                        </button>
+                      ) : isPastDeadline ? (
                         <span
                           style={{
                             fontSize: '12px',
@@ -384,11 +442,11 @@ export default function AssignmentsTab({
             </h3>
 
             {submissionSuccess && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#16a34a' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#16a34a', marginBottom: '12px' }}>
                 <CheckCircle size={18} /> {submissionSuccess}
               </div>
             )}
-            {submissionError && <p style={{ color: '#dc2626', fontSize: '14px' }}>{submissionError}</p>}
+            {submissionError && <p style={{ color: '#dc2626', fontSize: '14px', marginBottom: '12px' }}>{submissionError}</p>}
 
             <form onSubmit={handleSubmitWork} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
@@ -421,17 +479,23 @@ export default function AssignmentsTab({
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button
                   type="button"
-                  onClick={() => setSubmittingAssignment(null)}
+                  onClick={() => {
+                    setSubmittingAssignment(null);
+                    setSubmissionFile(null);
+                    setSubmissionLink('');
+                    setSubmissionError('');
+                  }}
                   style={{
                     padding: '8px 16px',
                     borderRadius: '6px',
                     border: '1px solid #ccc',
-                    background: '#fff',
+                    backgroundColor: '#fff',
                     cursor: 'pointer',
                   }}
+                  disabled={isSubmittingWork}
                 >
                   Cancel
                 </button>
@@ -439,10 +503,10 @@ export default function AssignmentsTab({
                   type="submit"
                   disabled={isSubmittingWork}
                   style={{
-                    padding: '8px 18px',
+                    padding: '8px 16px',
                     borderRadius: '6px',
                     border: 'none',
-                    background: '#14785c',
+                    backgroundColor: '#14785c',
                     color: '#fff',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -452,6 +516,138 @@ export default function AssignmentsTab({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Student View My Submission Modal */}
+      {viewingMySubmission && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              width: '90%',
+              maxWidth: '500px',
+              padding: '24px',
+              position: 'relative',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: '#16181b', fontSize: '1.15rem' }}>
+                My Submission: {viewingMySubmission.title}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setViewingMySubmission(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: '#15803d',
+                fontSize: '14px',
+                fontWeight: 600,
+              }}
+            >
+              <CheckCircle2 size={18} /> Assignment Submitted & Recorded
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px' }}>
+              <div>
+                <span style={{ color: '#64748b', fontSize: '13px' }}>Submitted On:</span>
+                <p style={{ margin: '2px 0 0', fontWeight: 600, color: '#1e293b' }}>
+                  {viewingMySubmission.mySubmission?.submittedAt
+                    ? new Date(viewingMySubmission.mySubmission.submittedAt).toLocaleString()
+                    : 'Recorded'}
+                </p>
+              </div>
+
+              {viewingMySubmission.mySubmission?.fileUrl && (
+                <div>
+                  <span style={{ color: '#64748b', fontSize: '13px' }}>Attached File / Document:</span>
+                  <p style={{ margin: '4px 0 0' }}>
+                    <a
+                      href={getFileUrl(viewingMySubmission.mySubmission.fileUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        color: '#0284c7',
+                        textDecoration: 'underline',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <FileText size={16} /> Open Submitted Document <ExternalLink size={14} />
+                    </a>
+                  </p>
+                </div>
+              )}
+
+              {viewingMySubmission.mySubmission?.submissionText && (
+                <div>
+                  <span style={{ color: '#64748b', fontSize: '13px' }}>Submission Notes / Link:</span>
+                  <p style={{ margin: '2px 0 0', color: '#1e293b' }}>
+                    {viewingMySubmission.mySubmission.submissionText}
+                  </p>
+                </div>
+              )}
+
+              {viewingMySubmission.mySubmission?.grade !== undefined && viewingMySubmission.mySubmission?.grade !== null && (
+                <div style={{ marginTop: '8px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                  <span style={{ color: '#64748b', fontSize: '13px' }}>Instructor Grade:</span>
+                  <h4 style={{ margin: '4px 0 0', color: '#14785c', fontSize: '18px' }}>
+                    {viewingMySubmission.mySubmission.grade} / {viewingMySubmission.totalPoints || 100} pts
+                  </h4>
+                  {viewingMySubmission.mySubmission.feedback && (
+                    <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#475569' }}>
+                      Feedback: {viewingMySubmission.mySubmission.feedback}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button
+                type="button"
+                onClick={() => setViewingMySubmission(null)}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: '#14785c',
+                  color: '#fff',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -474,91 +670,83 @@ export default function AssignmentsTab({
               backgroundColor: '#fff',
               borderRadius: '12px',
               width: '90%',
-              maxWidth: '560px',
+              maxWidth: '640px',
               maxHeight: '80vh',
               overflowY: 'auto',
               padding: '24px',
               position: 'relative',
             }}
           >
-            <h3 style={{ marginTop: 0, color: '#16181b' }}>
-              Submissions: {viewingSubmissionsAssignment.title}
-            </h3>
-
-            {loadingSubmissions ? (
-              <div style={{ textAlign: 'center', padding: '24px' }}>
-                <Loader2 className={`${styles.spinner} animate-spin`} style={{ margin: '0 auto 8px' }} />
-                <p>Loading student submissions...</p>
-              </div>
-            ) : submissionsList.length === 0 ? (
-              <p style={{ color: '#8b9491', padding: '16px 0' }}>No submissions received yet.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-                {submissionsList.map((sub) => {
-                  const studentName = sub.student?.fullName || sub.student?.email || 'Student';
-                  const fileLink = getFileUrl(sub.fileUrl);
-                  return (
-                    <div
-                      key={sub.id}
-                      style={{
-                        padding: '12px 16px',
-                        border: '1px solid #e3e9e6',
-                        borderRadius: '8px',
-                        backgroundColor: '#fafbfc',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '6px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 600, color: '#16181b' }}>{studentName}</span>
-                        <span style={{ fontSize: '12px', color: '#8b9491' }}>
-                          {new Date(sub.submittedAt).toLocaleString()}
-                        </span>
-                      </div>
-                      {sub.submissionText && (
-                        <p style={{ margin: 0, fontSize: '13px', color: '#4b5563' }}>{sub.submissionText}</p>
-                      )}
-                      {fileLink && (
-                        <a
-                          href={fileLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{
-                            fontSize: '13px',
-                            color: '#14785c',
-                            fontWeight: 600,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            textDecoration: 'none',
-                          }}
-                        >
-                          <FileText size={14} /> View File / Link
-                        </a>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: '#16181b' }}>
+                Submissions: {viewingSubmissionsAssignment.title}
+              </h3>
               <button
                 type="button"
                 onClick={() => setViewingSubmissionsAssignment(null)}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: '6px',
-                  border: '1px solid #ccc',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
               >
-                Close
+                <X size={20} />
               </button>
             </div>
+
+            {loadingSubmissions ? (
+              <div style={{ textAlign: 'center', padding: '30px 0' }}>
+                <Loader2 className="animate-spin" style={{ margin: '0 auto 8px', color: '#14785c' }} />
+                <p style={{ color: '#64748b', margin: 0 }}>Loading submissions...</p>
+              </div>
+            ) : submissionsList.length === 0 ? (
+              <p style={{ color: '#64748b', textAlign: 'center', padding: '30px 0' }}>
+                No student submissions yet.
+              </p>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {submissionsList.map((sub, idx) => (
+                  <li
+                    key={sub.id || idx}
+                    style={{
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      padding: '12px 16px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      backgroundColor: '#f8fafc',
+                    }}
+                  >
+                    <div>
+                      <h4 style={{ margin: '0 0 4px', fontSize: '14px', color: '#1e293b' }}>
+                        {sub.student?.fullName || sub.student?.name || 'Student'}
+                      </h4>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>
+                        Submitted {new Date(sub.submittedAt).toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div>
+                      {sub.fileUrl && (
+                        <a
+                          href={getFileUrl(sub.fileUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            color: '#0284c7',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <FileText size={15} /> View Work
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}

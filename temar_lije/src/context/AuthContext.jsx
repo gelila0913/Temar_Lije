@@ -80,8 +80,8 @@ export function AuthProvider({ children }) {
     return result;
   }, [handleAuthSuccess]);
 
-  const register = useCallback(async ({ fullName, email, password, role, autoLogin = false }) => {
-    const result = await authApi.register({ fullName, email, password, role });
+  const register = useCallback(async ({ fullName, email, password, role, classroomCode, autoLogin = false }) => {
+    const result = await authApi.register({ fullName, email, password, role, classroomCode });
     if (autoLogin) {
       handleAuthSuccess(result);
     }

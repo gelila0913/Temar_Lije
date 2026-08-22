@@ -178,3 +178,23 @@ body.dark .classroom-tab-pill:hover {
   background-color: #334155;
   color: #f8fafc;
 }
+
+/* ============================================================
+   RESPONSIVE MEDIA QUERIES FOR ATTENDANCE TAB
+   ============================================================ */
+
+@media (max-width: 768px) {
+  .attendance-action-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .attendance-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .attendance-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Sparkles,
   Plus,
   Trash2,
   CheckCircle2,
   XCircle,
-  HelpCircle,
   Clock,
   Award,
   AlertCircle,
@@ -15,8 +14,10 @@ import {
   BarChart3,
   BookOpen,
   Loader2,
-  Users,
   Eye,
+  Download,
+  AlertTriangle,
+  Lightbulb,
 } from 'lucide-react';
 import {
   getQuizzes,
@@ -27,6 +28,7 @@ import {
   getSubmissionResult,
   getQuizAnalytics,
   deleteQuiz,
+  generateAIQuiz,
 } from '../../../../services/apiClient';
 
 export default function QuizzesTab({
@@ -52,12 +54,21 @@ export default function QuizzesTab({
       text: '',
       type: 'MULTIPLE_CHOICE',
       points: 1,
+      explanation: '',
       options: [
         { id: 'opt_1', text: '', isCorrect: true },
         { id: 'opt_2', text: '', isCorrect: false },
       ],
     },
   ]);
+
+  // Teacher: AI Quiz Generator Modal
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiCount, setAiCount] = useState(5);
+  const [aiDifficulty, setAiDifficulty] = useState('Medium');
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   // Teacher: Analytics Modal
   const [analyticsQuiz, setAnalyticsQuiz] = useState(null);
@@ -70,10 +81,11 @@ export default function QuizzesTab({
   const [studentAnswers, setStudentAnswers] = useState({}); // { [questionId]: selectedOptionId }
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [takeError, setTakeError] = useState('');
+  const [secondsLeft, setSecondsLeft] = useState(null);
+  const [tabSwitches, setTabSwitches] = useState(0);
 
   // Student: Quiz Results Modal
   const [resultModal, setResultModal] = useState(null);
-  const [loadingResult, setLoadingResult] = useState(false);
 
   // Deleting Quiz
   const [deletingId, setDeletingId] = useState(null);
@@ -99,6 +111,92 @@ export default function QuizzesTab({
     loadQuizzesList();
   }, [loadQuizzesList]);
 
+  // Tab switch detection during quiz taking
+  useEffect(() => {
+    if (!takingQuiz) {
+      setTabSwitches(0);
+      return;
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setTabSwitches((prev) => prev + 1);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [takingQuiz]);
+
+  // Live Countdown Timer with Auto-Submit
+  const studentAnswersRef = useRef(studentAnswers);
+  studentAnswersRef.current = studentAnswers;
+  const takingQuizRef = useRef(takingQuiz);
+  takingQuizRef.current = takingQuiz;
+
+  const handleAutoSubmit = useCallback(async () => {
+    const quiz = takingQuizRef.current;
+    if (!quiz) return;
+
+    setSubmittingQuiz(true);
+    setTakeError('');
+    try {
+      const answersList = (quiz.questions || []).map((q) => ({
+        questionId: q.id,
+        selectedOptionId: studentAnswersRef.current[q.id] !== undefined ? studentAnswersRef.current[q.id] : null,
+      }));
+
+      const answersPayload = {
+        studentId: currentUser?.id,
+        answers: answersList,
+      };
+
+      const result = await submitQuiz(quiz.id, answersPayload);
+      setTakingQuiz(null);
+      setSecondsLeft(null);
+      setResultModal(result);
+      await loadQuizzesList();
+    } catch (err) {
+      setTakeError(err.message || 'Auto-submission failed. Please click Submit Quiz.');
+    } finally {
+      setSubmittingQuiz(false);
+    }
+  }, [currentUser?.id, loadQuizzesList]);
+
+  useEffect(() => {
+    if (!takingQuiz) {
+      setSecondsLeft(null);
+      return;
+    }
+
+    const duration = Math.max(1, Number(takingQuiz.durationMinutes) || 15);
+    setSecondsLeft(duration * 60);
+
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleAutoSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [takingQuiz, handleAutoSubmit]);
+
+  // Format seconds to mm:ss
+  const formatTimer = (totalSeconds) => {
+    if (totalSeconds === null || totalSeconds === undefined) return '--:--';
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
   // --- Question Builder Handlers (Teacher) ---
   const handleAddQuestion = () => {
     setQuestions((prev) => [
@@ -108,6 +206,7 @@ export default function QuizzesTab({
         text: '',
         type: 'MULTIPLE_CHOICE',
         points: 1,
+        explanation: '',
         options: [
           { id: `opt_1_${Date.now()}`, text: '', isCorrect: true },
           { id: `opt_2_${Date.now()}`, text: '', isCorrect: false },
@@ -200,7 +299,6 @@ export default function QuizzesTab({
         if (i !== qIdx) return q;
         if (q.options.length <= 2) return q;
         const remaining = q.options.filter((_, oi) => oi !== optIdx);
-        // Ensure at least one option remains correct
         const hasCorrect = remaining.some((o) => o.isCorrect);
         if (!hasCorrect && remaining.length > 0) {
           remaining[0].isCorrect = true;
@@ -208,6 +306,40 @@ export default function QuizzesTab({
         return { ...q, options: remaining };
       })
     );
+  };
+
+  // AI Quiz Generator Action
+  const handleGenerateAIQuiz = async (e) => {
+    e.preventDefault();
+    if (!aiTopic.trim()) {
+      setAiError('Please enter a topic for the quiz.');
+      return;
+    }
+
+    setGeneratingAI(true);
+    setAiError('');
+    try {
+      const generated = await generateAIQuiz({
+        topic: aiTopic.trim(),
+        questionCount: Number(aiCount) || 5,
+        difficulty: aiDifficulty,
+        classroomId: classId,
+      });
+
+      setNewQuizTitle(generated.title || `${aiTopic.trim()} Assessment`);
+      setNewQuizDesc(generated.description || `Assessment on ${aiTopic.trim()}`);
+      setNewQuizDuration(generated.durationMinutes || 15);
+      if (Array.isArray(generated.questions) && generated.questions.length > 0) {
+        setQuestions(generated.questions);
+      }
+
+      setShowAIModal(false);
+      setShowCreateModal(true);
+    } catch (err) {
+      setAiError(err.message || 'Failed to generate AI quiz. Please try again.');
+    } finally {
+      setGeneratingAI(false);
+    }
   };
 
   // Create Quiz Form Submission
@@ -251,6 +383,7 @@ export default function QuizzesTab({
           text: q.text.trim(),
           type: q.type,
           points: Number(q.points) || 1,
+          explanation: q.explanation ? q.explanation.trim() : undefined,
           options: q.options.map((o) => ({
             id: o.id,
             text: o.text.trim(),
@@ -260,7 +393,6 @@ export default function QuizzesTab({
       });
 
       setShowCreateModal(false);
-      // Reset form
       setNewQuizTitle('');
       setNewQuizDesc('');
       setNewQuizDuration(15);
@@ -270,6 +402,7 @@ export default function QuizzesTab({
           text: '',
           type: 'MULTIPLE_CHOICE',
           points: 1,
+          explanation: '',
           options: [
             { id: 'opt_1', text: '', isCorrect: true },
             { id: 'opt_2', text: '', isCorrect: false },
@@ -323,15 +456,50 @@ export default function QuizzesTab({
     }
   };
 
-  // Student: Start Taking Quiz
+  // Teacher: Export CSV Gradebook
+  const handleExportCSV = () => {
+    if (!analyticsData || !analyticsData.submissions) return;
+    const headers = ['Student Name', 'Student Email', 'Score', 'Max Points', 'Percentage', 'Submission Date'];
+    const rows = analyticsData.submissions.map((s) => [
+      `"${(s.studentName || '').replace(/"/g, '""')}"`,
+      `"${(s.studentEmail || '').replace(/"/g, '""')}"`,
+      s.score,
+      s.maxScore,
+      `${s.percentage}%`,
+      `"${new Date(s.submittedAt).toLocaleString()}"`,
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Gradebook_${(analyticsQuiz?.title || 'Quiz').replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Student: Start Taking Quiz (Strict One Attempt Rule)
   const handleStartTakingQuiz = async (quiz) => {
+    if (quiz.submitted) {
+      handleViewResult(quiz.id);
+      return;
+    }
     setTakeError('');
     setLoading(true);
     try {
       const details = await getQuizDetails(quiz.id);
+      if (details.alreadySubmitted && (details.result || details.submission)) {
+        setTakingQuiz(null);
+        setResultModal(details.result || details.submission);
+        await loadQuizzesList();
+        return;
+      }
       setTakingQuiz(details);
       setCurrentQuestionIdx(0);
       setStudentAnswers({});
+      setTabSwitches(0);
     } catch (err) {
       alert(err.message || 'Failed to load quiz');
     } finally {
@@ -365,19 +533,23 @@ export default function QuizzesTab({
     setSubmittingQuiz(true);
     setTakeError('');
     try {
+      const answersList = (takingQuiz.questions || []).map((q) => ({
+        questionId: q.id,
+        selectedOptionId: studentAnswers[q.id] !== undefined ? studentAnswers[q.id] : null,
+      }));
+
       const answersPayload = {
-        answers: Object.entries(studentAnswers).map(([questionId, selectedOptionId]) => ({
-          questionId,
-          selectedOptionId,
-        })),
+        studentId: currentUser?.id,
+        answers: answersList,
       };
 
       const result = await submitQuiz(takingQuiz.id, answersPayload);
       setTakingQuiz(null);
+      setSecondsLeft(null);
       setResultModal(result);
       await loadQuizzesList();
     } catch (err) {
-      setTakeError(err.message || 'Submission failed');
+      setTakeError(err.message || 'Submission failed. Please try again.');
     } finally {
       setSubmittingQuiz(false);
     }
@@ -422,32 +594,58 @@ export default function QuizzesTab({
           </h2>
           <p style={{ margin: 0, fontSize: '0.875rem', color: '#6b7280' }}>
             {isTeacher
-              ? 'Create deterministic assessments, manage questions, and analyze class performance.'
-              : 'Test your knowledge, review instant grades, and monitor your understanding.'}
+              ? 'Create deterministic assessments, generate questions with AI, and analyze student analytics.'
+              : 'Test your knowledge with live countdown timers, instant feedback, and answer explanations.'}
           </p>
         </div>
 
         {isTeacher && (
-          <button
-            type="button"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '10px 18px',
-              background: '#14785c',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '20px',
-              fontSize: '0.875rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(20, 120, 92, 0.2)',
-            }}
-            onClick={() => setShowCreateModal(true)}
-          >
-            <Plus size={16} /> Create Quiz
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              type="button"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 16px',
+                background: '#f0fdf4',
+                color: '#15803d',
+                border: '1px solid #bbf7d0',
+                borderRadius: '20px',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+              onClick={() => {
+                setAiTopic('');
+                setAiError('');
+                setShowAIModal(true);
+              }}
+            >
+              <Sparkles size={16} /> AI Quiz Generator
+            </button>
+
+            <button
+              type="button"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 18px',
+                background: '#14785c',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '20px',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(20, 120, 92, 0.2)',
+              }}
+              onClick={() => setShowCreateModal(true)}
+            >
+              <Plus size={16} /> Create Quiz
+            </button>
+          </div>
         )}
       </div>
 
@@ -506,7 +704,7 @@ export default function QuizzesTab({
           </h3>
           <p style={{ color: '#6b7280', margin: 0, fontSize: '0.875rem' }}>
             {isTeacher
-              ? 'Click "Create Quiz" above to publish your first assessment.'
+              ? 'Click "AI Quiz Generator" or "Create Quiz" to publish your first assessment.'
               : 'There are no active quizzes in this classroom right now.'}
           </p>
         </div>
@@ -514,7 +712,7 @@ export default function QuizzesTab({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
             gap: '16px',
           }}
         >
@@ -541,7 +739,14 @@ export default function QuizzesTab({
                   transition: 'all 0.15s ease',
                 }}
               >
-                <div>
+                <div
+                  onClick={() => {
+                    if (!isTeacher && isSubmitted) {
+                      handleViewResult(quiz.id);
+                    }
+                  }}
+                  style={{ cursor: !isTeacher && isSubmitted ? 'pointer' : 'default' }}
+                >
                   {/* Top Badges */}
                   <div
                     style={{
@@ -565,8 +770,7 @@ export default function QuizzesTab({
                         gap: '4px',
                       }}
                     >
-                      <Clock size={12} /> {quiz.durationMinutes || 15} mins ·{' '}
-                      {quiz.questionCount || 0} Qs
+                      <Clock size={12} /> {quiz.durationMinutes || 15} mins · {quiz.questionCount || 0} Qs
                     </span>
 
                     {isTeacher ? (
@@ -596,29 +800,16 @@ export default function QuizzesTab({
                           gap: '4px',
                         }}
                       >
-                        <CheckCircle2 size={12} /> Score: {scorePercentage}%
+                        <CheckCircle2 size={12} /> Completed ({scorePercentage}%)
                       </span>
-                    ) : (
-                      <span
-                        style={{
-                          fontSize: '0.72rem',
-                          fontWeight: '600',
-                          color: '#4b5563',
-                          background: '#f3f4f6',
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                        }}
-                      >
-                        Not Taken
-                      </span>
-                    )}
+                    ) : null}
                   </div>
 
                   <h3
                     style={{
-                      fontSize: '1.05rem',
-                      fontWeight: '600',
                       margin: '0 0 6px 0',
+                      fontSize: '1.05rem',
+                      fontWeight: '700',
                       color: '#16181b',
                     }}
                   >
@@ -628,112 +819,104 @@ export default function QuizzesTab({
                   {quiz.description && (
                     <p
                       style={{
+                        margin: 0,
                         fontSize: '0.825rem',
                         color: '#6b7280',
-                        margin: '0 0 10px 0',
                         lineHeight: 1.4,
                       }}
                     >
                       {quiz.description}
                     </p>
                   )}
-
-                  <div
-                    style={{
-                      fontSize: '0.75rem',
-                      color: '#8b9491',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                    }}
-                  >
-                    <span>Total Points: {quiz.totalPoints || quiz.questionCount || 0}</span>
-                    {isTeacher && <span>Submissions: {quiz.submissionCount || 0}</span>}
-                  </div>
                 </div>
 
-                {/* Card Actions */}
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {/* Footer Actions */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingTop: '12px',
+                    borderTop: '1px solid #f3f4f6',
+                    gap: '8px',
+                  }}
+                >
                   {isTeacher ? (
                     <>
-                      <button
-                        type="button"
-                        style={{
-                          flex: 1,
-                          padding: '8px 12px',
-                          background: '#f3f7f5',
-                          color: '#14785c',
-                          border: '1px solid #c2ded6',
-                          borderRadius: '8px',
-                          fontSize: '0.825rem',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                        }}
-                        onClick={() => handleOpenAnalytics(quiz)}
-                      >
-                        <BarChart3 size={14} /> Analytics
-                      </button>
-
-                      {!quiz.isPublished && (
+                      <div style={{ display: 'flex', gap: '6px' }}>
                         <button
                           type="button"
                           style={{
-                            padding: '8px 12px',
-                            background: '#14785c',
-                            color: '#ffffff',
-                            border: 'none',
+                            padding: '6px 12px',
                             borderRadius: '8px',
-                            fontSize: '0.825rem',
+                            border: '1px solid #d1d5db',
+                            background: '#fff',
+                            color: '#374151',
+                            fontSize: '0.8rem',
                             fontWeight: '600',
                             cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
                           }}
-                          onClick={() => handlePublish(quiz.id)}
+                          onClick={() => handleOpenAnalytics(quiz)}
                         >
-                          Publish
+                          <BarChart3 size={14} /> Analytics
                         </button>
-                      )}
+
+                        {!quiz.isPublished && (
+                          <button
+                            type="button"
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              background: '#14785c',
+                              color: '#fff',
+                              fontSize: '0.8rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                            }}
+                            onClick={() => handlePublish(quiz.id)}
+                          >
+                            Publish
+                          </button>
+                        )}
+                      </div>
 
                       <button
                         type="button"
                         style={{
-                          padding: '8px',
-                          background: '#fff',
+                          padding: '6px',
+                          background: 'none',
+                          border: 'none',
                           color: '#ef4444',
-                          border: '1px solid #fee2e2',
-                          borderRadius: '8px',
                           cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
                         }}
-                        onClick={() => handleDelete(quiz.id)}
                         disabled={deletingId === quiz.id}
-                        title="Delete quiz"
+                        onClick={() => handleDelete(quiz.id)}
+                        title="Delete Quiz"
                       >
                         {deletingId === quiz.id ? (
-                          <Loader2 size={14} className="animate-spin" />
+                          <Loader2 size={16} className="animate-spin" />
                         ) : (
-                          <Trash2 size={14} />
+                          <Trash2 size={16} />
                         )}
                       </button>
                     </>
                   ) : (
-                    <>
+                    <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
                       {isSubmitted ? (
                         <button
                           type="button"
                           style={{
                             width: '100%',
                             padding: '8px 14px',
-                            background: '#f3f7f5',
-                            color: '#14785c',
-                            border: '1px solid #c2ded6',
                             borderRadius: '8px',
-                            fontSize: '0.85rem',
+                            border: '1px solid #d1d5db',
+                            background: '#f8fafc',
+                            color: '#1e293b',
+                            fontSize: '0.825rem',
                             fontWeight: '600',
                             cursor: 'pointer',
                             display: 'inline-flex',
@@ -742,20 +925,19 @@ export default function QuizzesTab({
                             gap: '6px',
                           }}
                           onClick={() => handleViewResult(quiz.id)}
-                          disabled={loadingResult}
                         >
-                          <Eye size={15} /> Review Results
+                          <Eye size={14} /> Review Results ({quiz.score}/{quiz.maxScore} pts)
                         </button>
                       ) : (
                         <button
                           type="button"
                           style={{
                             width: '100%',
-                            padding: '8px 14px',
-                            background: '#14785c',
-                            color: '#ffffff',
-                            border: 'none',
+                            padding: '8px 16px',
                             borderRadius: '8px',
+                            border: 'none',
+                            background: '#14785c',
+                            color: '#fff',
                             fontSize: '0.85rem',
                             fontWeight: '600',
                             cursor: 'pointer',
@@ -766,15 +948,181 @@ export default function QuizzesTab({
                           }}
                           onClick={() => handleStartTakingQuiz(quiz)}
                         >
-                          Take Quiz <ChevronRight size={15} />
+                          Start Test <ChevronRight size={16} />
                         </button>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* TEACHER: AI Quiz Generator Modal */}
+      {showAIModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1050,
+            padding: '20px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '500px',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={20} style={{ color: '#14785c' }} />
+                <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#16181b' }}>AI Quiz Generator</h3>
+              </div>
+              <button
+                type="button"
+                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#9ca3af' }}
+                onClick={() => setShowAIModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {aiError && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  backgroundColor: '#fee2e2',
+                  color: '#b91c1c',
+                  borderRadius: '8px',
+                  marginBottom: '14px',
+                  fontSize: '0.85rem',
+                }}
+              >
+                {aiError}
+              </div>
+            )}
+
+            <form onSubmit={handleGenerateAIQuiz}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Lesson Topic / Subject *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Flutter Widget Structure, React Hooks, SQL Joins"
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    boxSizing: 'border-box',
+                  }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                    Number of Questions
+                  </label>
+                  <select
+                    value={aiCount}
+                    onChange={(e) => setAiCount(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                    }}
+                  >
+                    <option value={3}>3 Questions</option>
+                    <option value={5}>5 Questions</option>
+                    <option value={8}>8 Questions</option>
+                    <option value={10}>10 Questions</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                    Difficulty Level
+                  </label>
+                  <select
+                    value={aiDifficulty}
+                    onChange={(e) => setAiDifficulty(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                    }}
+                  >
+                    <option value="Easy">Easy (Fundamentals)</option>
+                    <option value="Medium">Medium (Applied)</option>
+                    <option value="Hard">Hard (Advanced)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    background: '#fff',
+                    color: '#374151',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setShowAIModal(false)}
+                  disabled={generatingAI}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={generatingAI}
+                  style={{
+                    padding: '8px 18px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#14785c',
+                    color: '#fff',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  {generatingAI ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" /> Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={16} /> Generate Quiz
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -800,30 +1148,20 @@ export default function QuizzesTab({
               maxWidth: '680px',
               maxHeight: '90vh',
               overflowY: 'auto',
-              padding: '24px',
+              padding: '28px',
               boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '16px',
-              }}
-            >
-              <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#16181b' }}>
-                Create New Quiz
-              </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.3rem', color: '#16181b' }}>Create Classroom Quiz</h3>
+                <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                  Design assessment questions, set correct options, and add answer explanations
+                </span>
+              </div>
               <button
                 type="button"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.2rem',
-                  cursor: 'pointer',
-                  color: '#9ca3af',
-                }}
+                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#9ca3af' }}
                 onClick={() => setShowCreateModal(false)}
               >
                 ✕
@@ -846,23 +1184,15 @@ export default function QuizzesTab({
             )}
 
             <form onSubmit={handleSaveQuiz}>
-              {/* Basic Fields */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* General Info */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '0.85rem',
-                      fontWeight: '600',
-                      marginBottom: '4px',
-                      color: '#374151',
-                    }}
-                  >
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
                     Quiz Title *
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Unit 3 Checkpoint: Core Grammar"
+                    placeholder="e.g. Flutter Widget Fundamentals"
                     value={newQuizTitle}
                     onChange={(e) => setNewQuizTitle(e.target.value)}
                     style={{
@@ -877,19 +1207,12 @@ export default function QuizzesTab({
                 </div>
 
                 <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '0.85rem',
-                      fontWeight: '600',
-                      marginBottom: '4px',
-                      color: '#374151',
-                    }}
-                  >
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
                     Description (optional)
                   </label>
-                  <textarea
-                    placeholder="Short summary or instructions for students..."
+                  <input
+                    type="text"
+                    placeholder="Brief summary of what this quiz evaluates"
                     value={newQuizDesc}
                     onChange={(e) => setNewQuizDesc(e.target.value)}
                     style={{
@@ -898,28 +1221,19 @@ export default function QuizzesTab({
                       borderRadius: '8px',
                       border: '1px solid #d1d5db',
                       boxSizing: 'border-box',
-                      minHeight: '60px',
                     }}
                   />
                 </div>
 
-                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: '160px' }}>
-                    <label
-                      style={{
-                        display: 'block',
-                        fontSize: '0.85rem',
-                        fontWeight: '600',
-                        marginBottom: '4px',
-                        color: '#374151',
-                      }}
-                    >
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
                       Duration (Minutes)
                     </label>
                     <input
                       type="number"
                       min="1"
-                      max="300"
+                      max="180"
                       value={newQuizDuration}
                       onChange={(e) => setNewQuizDuration(e.target.value)}
                       style={{
@@ -929,56 +1243,47 @@ export default function QuizzesTab({
                         border: '1px solid #d1d5db',
                         boxSizing: 'border-box',
                       }}
+                      required
                     />
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '22px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '24px' }}>
                     <input
                       type="checkbox"
-                      id="publishCheck"
+                      id="publishNow"
                       checked={newQuizPublish}
                       onChange={(e) => setNewQuizPublish(e.target.checked)}
                       style={{ width: '16px', height: '16px', accentColor: '#14785c' }}
                     />
-                    <label
-                      htmlFor="publishCheck"
-                      style={{ fontSize: '0.875rem', color: '#374151', cursor: 'pointer' }}
-                    >
-                      Publish immediately
+                    <label htmlFor="publishNow" style={{ fontSize: '0.85rem', color: '#374151', fontWeight: '500', cursor: 'pointer' }}>
+                      Publish to students immediately
                     </label>
                   </div>
                 </div>
               </div>
 
-              {/* Question Builder Section */}
-              <div style={{ marginTop: '24px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '12px',
-                  }}
-                >
-                  <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#16181b' }}>
+              {/* Questions Section */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h4 style={{ margin: 0, fontSize: '1rem', color: '#16181b' }}>
                     Questions ({questions.length})
                   </h4>
                   <button
                     type="button"
+                    onClick={handleAddQuestion}
                     style={{
-                      padding: '6px 12px',
-                      background: '#f3f7f5',
-                      color: '#14785c',
-                      border: '1px solid #c2ded6',
-                      borderRadius: '6px',
-                      fontSize: '0.8rem',
-                      fontWeight: '600',
-                      cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '4px',
+                      padding: '6px 12px',
+                      background: '#f3f4f6',
+                      color: '#374151',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
                     }}
-                    onClick={handleAddQuestion}
                   >
                     <Plus size={14} /> Add Question
                   </button>
@@ -987,22 +1292,15 @@ export default function QuizzesTab({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {questions.map((q, qIdx) => (
                     <div
-                      key={q.id}
+                      key={q.id || qIdx}
                       style={{
-                        padding: '16px',
                         border: '1px solid #e5e7eb',
                         borderRadius: '12px',
+                        padding: '16px',
                         background: '#fafafa',
                       }}
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: '10px',
-                        }}
-                      >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <span style={{ fontWeight: '600', fontSize: '0.9rem', color: '#16181b' }}>
                           Question {qIdx + 1}
                         </span>
@@ -1050,22 +1348,19 @@ export default function QuizzesTab({
                           borderRadius: '6px',
                           border: '1px solid #d1d5db',
                           boxSizing: 'border-box',
-                          marginBottom: '12px',
+                          marginBottom: '10px',
                         }}
                         required
                       />
 
                       {/* Options */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                         <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: '500' }}>
                           Select the radio button next to the correct answer:
                         </span>
 
                         {q.options.map((opt, optIdx) => (
-                          <div
-                            key={opt.id || optIdx}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                          >
+                          <div key={opt.id || optIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <input
                               type="radio"
                               name={`correct_${qIdx}`}
@@ -1123,12 +1418,33 @@ export default function QuizzesTab({
                               fontSize: '0.8rem',
                               fontWeight: '600',
                               cursor: 'pointer',
-                              marginTop: '4px',
                             }}
                           >
                             + Add Option
                           </button>
                         )}
+                      </div>
+
+                      {/* Educational Explanation */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#4b5563', marginBottom: '4px' }}>
+                          💡 Answer Explanation & Concept (Shown to students after submission):
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. StatefulWidget is required because it maintains state across widget rebuilds."
+                          value={q.explanation || ''}
+                          onChange={(e) => handleQuestionChange(qIdx, 'explanation', e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            border: '1px solid #d1d5db',
+                            fontSize: '0.825rem',
+                            boxSizing: 'border-box',
+                            background: '#ffffff',
+                          }}
+                        />
                       </div>
                     </div>
                   ))}
@@ -1211,38 +1527,25 @@ export default function QuizzesTab({
               backgroundColor: '#fff',
               borderRadius: '16px',
               width: '100%',
-              maxWidth: '640px',
+              maxWidth: '660px',
               maxHeight: '85vh',
               overflowY: 'auto',
               padding: '24px',
               boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '16px',
-              }}
-            >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: '1.2rem', color: '#16181b' }}>
-                  Quiz Analytics: {analyticsQuiz.title}
+                  Analytics: {analyticsQuiz.title}
                 </h3>
                 <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                  Class-wide grading overview & student submissions
+                  Class-wide grading metrics, question difficulty & student scorebook
                 </span>
               </div>
               <button
                 type="button"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '1.2rem',
-                  cursor: 'pointer',
-                  color: '#9ca3af',
-                }}
+                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: '#9ca3af' }}
                 onClick={() => setAnalyticsQuiz(null)}
               >
                 ✕
@@ -1251,11 +1554,7 @@ export default function QuizzesTab({
 
             {loadingAnalytics ? (
               <div style={{ padding: '40px 0', textAlign: 'center' }}>
-                <Loader2
-                  size={28}
-                  className="animate-spin"
-                  style={{ margin: '0 auto 8px', color: '#14785c' }}
-                />
+                <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto 8px', color: '#14785c' }} />
                 <p style={{ color: '#6b7280' }}>Loading analytics...</p>
               </div>
             ) : !analyticsData ? (
@@ -1270,80 +1569,95 @@ export default function QuizzesTab({
                     display: 'grid',
                     gridTemplateColumns: 'repeat(3, 1fr)',
                     gap: '12px',
-                    marginBottom: '20px',
+                    marginBottom: '16px',
                   }}
                 >
-                  <div
-                    style={{
-                      background: '#f8fafc',
-                      padding: '12px',
-                      borderRadius: '10px',
-                      border: '1px solid #e2e8f0',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>
-                      Submissions
-                    </span>
-                    <strong style={{ fontSize: '1.25rem', color: '#1e293b' }}>
-                      {analyticsData.totalSubmissions || 0}
-                    </strong>
+                  <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>Submissions</span>
+                    <strong style={{ fontSize: '1.25rem', color: '#1e293b' }}>{analyticsData.totalSubmissions || 0}</strong>
                   </div>
 
-                  <div
-                    style={{
-                      background: '#f0fdf4',
-                      padding: '12px',
-                      borderRadius: '10px',
-                      border: '1px solid #bbf7d0',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.75rem', color: '#166534', display: 'block' }}>
-                      Class Average
-                    </span>
-                    <strong style={{ fontSize: '1.25rem', color: '#15803d' }}>
-                      {analyticsData.averageScore || 0} pts
-                    </strong>
+                  <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '10px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#166534', display: 'block' }}>Class Average</span>
+                    <strong style={{ fontSize: '1.25rem', color: '#15803d' }}>{analyticsData.averageScore || 0} pts</strong>
                   </div>
 
-                  <div
-                    style={{
-                      background: '#f0f9ff',
-                      padding: '12px',
-                      borderRadius: '10px',
-                      border: '1px solid #bae6fd',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.75rem', color: '#0369a1', display: 'block' }}>
-                      High / Low
-                    </span>
+                  <div style={{ background: '#f0f9ff', padding: '12px', borderRadius: '10px', border: '1px solid #bae6fd', textAlign: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#0369a1', display: 'block' }}>High / Low</span>
                     <strong style={{ fontSize: '1.25rem', color: '#0284c7' }}>
                       {analyticsData.highestScore || 0} / {analyticsData.lowestScore || 0}
                     </strong>
                   </div>
                 </div>
 
-                {/* Submissions List */}
-                <h4 style={{ margin: '0 0 10px 0', fontSize: '0.95rem', color: '#16181b' }}>
-                  Student Submissions
-                </h4>
+                {/* Question Performance Breakdown */}
+                {Array.isArray(analyticsData.questionStats) && analyticsData.questionStats.length > 0 && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '0.925rem', color: '#16181b' }}>
+                      Question Performance Breakdown
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {analyticsData.questionStats.map((qs) => (
+                        <div
+                          key={qs.questionId}
+                          style={{
+                            padding: '8px 12px',
+                            background: '#fafafa',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            fontSize: '0.8rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <span style={{ color: '#374151', flex: 1, marginRight: '10px' }}>
+                            <strong>Q{qs.questionNumber}:</strong> {qs.questionText}
+                          </span>
+                          <span
+                            style={{
+                              fontWeight: '700',
+                              color: qs.passRate >= 70 ? '#15803d' : qs.passRate >= 40 ? '#b45309' : '#dc2626',
+                            }}
+                          >
+                            {qs.passRate}% correct ({qs.correctCount}/{qs.totalAnswers})
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Submissions List Header & Export */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.95rem', color: '#16181b' }}>Student Submissions</h4>
+                  {analyticsData.submissions?.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleExportCSV}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid #14785c',
+                        background: '#f0fdf4',
+                        color: '#15803d',
+                        fontSize: '0.75rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <Download size={13} /> Export CSV
+                    </button>
+                  )}
+                </div>
 
                 {analyticsData.submissions?.length === 0 ? (
-                  <p style={{ color: '#8b9491', fontSize: '0.875rem' }}>
-                    No students have submitted this quiz yet.
-                  </p>
+                  <p style={{ color: '#8b9491', fontSize: '0.875rem' }}>No students have submitted this quiz yet.</p>
                 ) : (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                      maxHeight: '300px',
-                      overflowY: 'auto',
-                    }}
-                  >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
                     {analyticsData.submissions.map((sub) => (
                       <div
                         key={sub.id}
@@ -1358,37 +1672,15 @@ export default function QuizzesTab({
                         }}
                       >
                         <div>
-                          <strong style={{ fontSize: '0.875rem', color: '#16181b' }}>
-                            {sub.studentName}
-                          </strong>
-                          <span
-                            style={{
-                              display: 'block',
-                              fontSize: '0.75rem',
-                              color: '#6b7280',
-                            }}
-                          >
-                            {sub.studentEmail}
-                          </span>
+                          <strong style={{ fontSize: '0.875rem', color: '#16181b' }}>{sub.studentName}</strong>
+                          <span style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280' }}>{sub.studentEmail}</span>
                         </div>
 
                         <div style={{ textAlign: 'right' }}>
-                          <span
-                            style={{
-                              fontWeight: '700',
-                              color: '#15803d',
-                              fontSize: '0.9rem',
-                            }}
-                          >
+                          <span style={{ fontWeight: '700', color: '#15803d', fontSize: '0.9rem' }}>
                             {sub.percentage}% ({sub.score}/{sub.maxScore} pts)
                           </span>
-                          <span
-                            style={{
-                              display: 'block',
-                              fontSize: '0.7rem',
-                              color: '#9ca3af',
-                            }}
-                          >
+                          <span style={{ display: 'block', fontSize: '0.7rem', color: '#9ca3af' }}>
                             {new Date(sub.submittedAt).toLocaleDateString()}
                           </span>
                         </div>
@@ -1439,49 +1731,136 @@ export default function QuizzesTab({
               backgroundColor: '#fff',
               borderRadius: '16px',
               width: '100%',
-              maxWidth: '650px',
+              maxWidth: '680px',
               maxHeight: '90vh',
               overflowY: 'auto',
               padding: '28px',
               boxShadow: '0 25px 30px -5px rgba(0,0,0,0.15)',
             }}
           >
-            {/* Header */}
+            {/* Header & Live Countdown Timer */}
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '16px',
+                alignItems: 'center',
+                marginBottom: '14px',
                 borderBottom: '1px solid #e5e7eb',
                 paddingBottom: '12px',
               }}
             >
               <div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', color: '#16181b' }}>
-                  {takingQuiz.title}
-                </h3>
+                <h3 style={{ margin: '0 0 2px 0', fontSize: '1.25rem', color: '#16181b' }}>{takingQuiz.title}</h3>
                 <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
                   Question {currentQuestionIdx + 1} of {takingQuiz.questions?.length || 0}
                 </span>
               </div>
 
-              <span
+              {/* Countdown Timer Pill */}
+              <div
                 style={{
-                  fontSize: '0.75rem',
-                  fontWeight: '600',
-                  color: '#0369a1',
-                  background: '#e0f2fe',
-                  padding: '4px 10px',
+                  fontSize: '0.85rem',
+                  fontWeight: '700',
+                  color:
+                    secondsLeft !== null && secondsLeft <= 30
+                      ? '#b91c1c'
+                      : secondsLeft !== null && secondsLeft <= 120
+                      ? '#b45309'
+                      : '#0369a1',
+                  background:
+                    secondsLeft !== null && secondsLeft <= 30
+                      ? '#fee2e2'
+                      : secondsLeft !== null && secondsLeft <= 120
+                      ? '#fef3c7'
+                      : '#e0f2fe',
+                  border:
+                    secondsLeft !== null && secondsLeft <= 30
+                      ? '1px solid #fca5a5'
+                      : secondsLeft !== null && secondsLeft <= 120
+                      ? '1px solid #fde68a'
+                      : '1px solid #bae6fd',
+                  padding: '5px 12px',
                   borderRadius: '20px',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px',
+                  gap: '6px',
+                  animation: secondsLeft !== null && secondsLeft <= 30 ? 'pulse 1s infinite' : 'none',
                 }}
               >
-                <Clock size={13} /> {takingQuiz.durationMinutes || 15} mins
-              </span>
+                <Clock size={15} /> Time Left: {formatTimer(secondsLeft)}
+              </div>
             </div>
+
+            {/* Tab switch warning */}
+            {tabSwitches > 0 && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#fffbeb',
+                  border: '1px solid #fde68a',
+                  color: '#b45309',
+                  borderRadius: '8px',
+                  marginBottom: '14px',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <AlertTriangle size={15} />
+                <span>
+                  Notice: Tab switch detected (<strong>{tabSwitches}</strong>). Please keep this quiz tab active until completion.
+                </span>
+              </div>
+            )}
+
+            {/* Question Navigator Grid / Palette */}
+            {Array.isArray(takingQuiz.questions) && takingQuiz.questions.length > 1 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginBottom: '18px',
+                  overflowX: 'auto',
+                  paddingBottom: '4px',
+                }}
+              >
+                <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#6b7280', marginRight: '4px' }}>
+                  Jump to:
+                </span>
+                {takingQuiz.questions.map((q, idx) => {
+                  const isAnswered = studentAnswers[q.id] !== undefined && studentAnswers[q.id] !== null;
+                  const isCurrent = currentQuestionIdx === idx;
+
+                  return (
+                    <button
+                      key={q.id || idx}
+                      type="button"
+                      onClick={() => setCurrentQuestionIdx(idx)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        border: isCurrent ? '2px solid #14785c' : '1px solid #d1d5db',
+                        background: isAnswered ? '#dcfce7' : '#f9fafb',
+                        color: isAnswered ? '#15803d' : '#374151',
+                        fontSize: '0.8rem',
+                        fontWeight: isCurrent || isAnswered ? '700' : '500',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {takeError && (
               <div
@@ -1666,148 +2045,272 @@ export default function QuizzesTab({
         </div>
       )}
 
-      {/* STUDENT: Quiz Results Modal */}
-      {resultModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px',
-          }}
-        >
+      {/* STUDENT: Quiz Results & Educational Explanations Modal */}
+      {resultModal && (() => {
+        const totalQuestions = resultModal.totalQuestions || resultModal.answers?.length || 0;
+        const correctCount = resultModal.correctCount !== undefined
+          ? resultModal.correctCount
+          : (resultModal.answers?.filter(a => a.isCorrect).length || 0);
+        const incorrectCount = resultModal.incorrectCount !== undefined
+          ? resultModal.incorrectCount
+          : Math.max(0, totalQuestions - correctCount);
+        const submittedDateStr = resultModal.submittedAt
+          ? new Date(resultModal.submittedAt).toLocaleString(undefined, {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })
+          : 'Recorded';
+
+        return (
           <div
             style={{
-              backgroundColor: '#fff',
-              borderRadius: '16px',
-              width: '100%',
-              maxWidth: '620px',
-              maxHeight: '85vh',
-              overflowY: 'auto',
-              padding: '28px',
-              boxShadow: '0 25px 30px -5px rgba(0,0,0,0.15)',
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: '20px',
             }}
           >
-            {/* Score Banner */}
             <div
               style={{
-                textAlign: 'center',
-                padding: '20px',
-                borderRadius: '12px',
-                background: resultModal.percentage >= 70 ? '#f0fdf4' : '#fff7ed',
-                border:
-                  resultModal.percentage >= 70 ? '1px solid #bbf7d0' : '1px solid #ffedd5',
-                marginBottom: '20px',
+                backgroundColor: '#fff',
+                borderRadius: '16px',
+                width: '100%',
+                maxWidth: '680px',
+                maxHeight: '88vh',
+                overflowY: 'auto',
+                padding: '28px',
+                boxShadow: '0 25px 30px -5px rgba(0,0,0,0.15)',
               }}
             >
-              <Award
-                size={36}
-                style={{
-                  margin: '0 auto 8px',
-                  color: resultModal.percentage >= 70 ? '#15803d' : '#c2410c',
-                }}
-              />
-              <h3 style={{ margin: '0 0 4px 0', fontSize: '1.4rem', color: '#16181b' }}>
-                {resultModal.percentage}%
-              </h3>
-              <p style={{ margin: 0, color: '#4b5563', fontSize: '0.875rem' }}>
-                You scored <strong>{resultModal.score}</strong> out of{' '}
-                <strong>{resultModal.maxScore}</strong> total points
-              </p>
-            </div>
-
-            {/* Answer Breakdown */}
-            <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', color: '#16181b' }}>
-              Question Breakdown
-            </h4>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {resultModal.answers?.map((ans, idx) => (
-                <div
-                  key={ans.questionId || idx}
-                  style={{
-                    padding: '14px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '10px',
-                    background: ans.isCorrect ? '#fcfdfd' : '#fffcfc',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                  }}
-                >
-                  <div
+              {/* Header with Title & Completion Badge */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', gap: '12px' }}>
+                <div>
+                  <span
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      color: '#15803d',
+                      background: '#dcfce7',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      display: 'inline-flex',
                       alignItems: 'center',
+                      gap: '4px',
+                      marginBottom: '6px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
                     }}
                   >
-                    <span style={{ fontWeight: '600', fontSize: '0.875rem', color: '#16181b' }}>
-                      Question {idx + 1}: {ans.questionText}
-                    </span>
-                    <span
+                    <CheckCircle2 size={13} /> Quiz Completed · 1 Attempt Only
+                  </span>
+                  <h3 style={{ margin: '0 0 4px 0', fontSize: '1.35rem', fontWeight: '800', color: '#16181b' }}>
+                    {resultModal.quizTitle || 'Quiz Results'}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.825rem', color: '#6b7280' }}>
+                    Submitted on <strong>{submittedDateStr}</strong>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setResultModal(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#9ca3af',
+                    cursor: 'pointer',
+                    fontSize: '1.2rem',
+                    padding: '4px',
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Score Banner & Stats Grid */}
+              <div
+                style={{
+                  padding: '18px 20px',
+                  borderRadius: '12px',
+                  background: resultModal.percentage >= 70 ? '#f0fdf4' : '#fff7ed',
+                  border: resultModal.percentage >= 70 ? '1px solid #bbf7d0' : '1px solid #ffedd5',
+                  marginBottom: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '16px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: resultModal.percentage >= 70 ? '#dcfce7' : '#ffedd5',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: resultModal.percentage >= 70 ? '#15803d' : '#c2410c',
+                    }}
+                  >
+                    <Award size={28} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#16181b', lineHeight: 1 }}>
+                      {resultModal.percentage}%
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#4b5563', marginTop: '2px' }}>
+                      Score: <strong>{resultModal.score}</strong> / {resultModal.maxScore} pts
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ padding: '6px 12px', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: '500' }}>Total Questions</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#16181b' }}>{totalQuestions}</div>
+                  </div>
+                  <div style={{ padding: '6px 12px', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#15803d', fontWeight: '600' }}>Correct</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#15803d' }}>{correctCount}</div>
+                  </div>
+                  <div style={{ padding: '6px 12px', background: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: '600' }}>Incorrect</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#dc2626' }}>{incorrectCount}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Answer Breakdown */}
+              <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', fontWeight: '700', color: '#16181b' }}>
+                Question Breakdown & Correct Answers
+              </h4>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {resultModal.answers?.map((ans, idx) => (
+                  <div
+                    key={ans.questionId || idx}
+                    style={{
+                      padding: '16px',
+                      border: ans.isCorrect ? '1px solid #bbf7d0' : '1px solid #fecaca',
+                      borderRadius: '12px',
+                      background: ans.isCorrect ? '#fcfdfd' : '#fffcfc',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                    }}
+                  >
+                    <div
                       style={{
-                        fontSize: '0.75rem',
-                        fontWeight: '700',
-                        color: ans.isCorrect ? '#15803d' : '#dc2626',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '8px',
                       }}
                     >
-                      {ans.isCorrect ? (
-                        <>
-                          <CheckCircle2 size={14} /> +{ans.pointsAwarded} pt
-                        </>
-                      ) : (
-                        <>
-                          <XCircle size={14} /> 0 pt
-                        </>
-                      )}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '0.825rem', color: '#4b5563' }}>
-                    <span>Your Answer: </span>
-                    <strong style={{ color: ans.isCorrect ? '#15803d' : '#dc2626' }}>
-                      {ans.selectedText}
-                    </strong>
-                  </div>
-
-                  {!ans.isCorrect && ans.correctText && (
-                    <div style={{ fontSize: '0.825rem', color: '#15803d' }}>
-                      <span>Correct Answer: </span>
-                      <strong>{ans.correctText}</strong>
+                      <span style={{ fontWeight: '700', fontSize: '0.92rem', color: '#16181b' }}>
+                        Question {idx + 1}: {ans.questionText}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          color: ans.isCorrect ? '#15803d' : '#dc2626',
+                          background: ans.isCorrect ? '#dcfce7' : '#fee2e2',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {ans.isCorrect ? (
+                          <>
+                            <CheckCircle2 size={13} /> Correct (+{ans.pointsAwarded} pt)
+                          </>
+                        ) : (
+                          <>
+                            <XCircle size={13} /> Incorrect (0 pt)
+                          </>
+                        )}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
-              <button
-                type="button"
-                style={{
-                  padding: '8px 20px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: '#14785c',
-                  color: '#fff',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setResultModal(null)}
-              >
-                Done
-              </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.85rem', color: '#4b5563' }}>
+                        <span style={{ fontWeight: '600' }}>Your answer: </span>
+                        <strong style={{ color: ans.isCorrect ? '#15803d' : '#dc2626' }}>
+                          {ans.selectedText || 'No answer selected'}
+                        </strong>
+                      </div>
+
+                      <div style={{ fontSize: '0.85rem', color: '#15803d' }}>
+                        <span style={{ fontWeight: '600', color: '#374151' }}>Correct answer: </span>
+                        <strong style={{ color: '#15803d' }}>
+                          {ans.correctText || 'Answer recorded'}
+                        </strong>
+                      </div>
+
+                      <div style={{ fontSize: '0.825rem', color: '#6b7280' }}>
+                        <span>Status: </span>
+                        <strong style={{ color: ans.isCorrect ? '#15803d' : '#dc2626' }}>
+                          {ans.isCorrect ? 'Correct' : 'Incorrect'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {ans.explanation && (
+                      <div
+                        style={{
+                          marginTop: '4px',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          backgroundColor: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                          fontSize: '0.825rem',
+                          color: '#475569',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '8px',
+                        }}
+                      >
+                        <Lightbulb size={15} style={{ color: '#eab308', flexShrink: 0, marginTop: '2px' }} />
+                        <span>
+                          <strong>Explanation:</strong> {ans.explanation}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button
+                  type="button"
+                  style={{
+                    padding: '8px 24px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#14785c',
+                    color: '#fff',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => setResultModal(null)}
+                >
+                  Close Results
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

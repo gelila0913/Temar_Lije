@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Sun, Moon, X, Search, ArrowLeft, Plus, BookOpen, Menu, UserPlus, Link, Check, CheckCheck, Paperclip, Send, Smile, Copy, Pencil, Trash2, Reply, Forward, Info, FileText, Image, FolderArchive, MessageSquare, Phone, Mic, MicOff, Volume2, LogOut, Pin, PinOff, Play, Pause, ChevronUp, ChevronDown } from 'lucide-react';
+import { Sun, Moon, X, Search, ArrowLeft, Plus, BookOpen, Menu, UserPlus, Link, Check, CheckCheck, Paperclip, Send, Smile, Copy, Pencil, Trash2, Reply, Forward, Info, FileText, Image, FolderArchive, MessageSquare, Phone, Mic, MicOff, LogOut, Pin, PinOff, Play, Pause, ChevronUp, ChevronDown } from 'lucide-react';
 import './chat.css';
 import { io } from 'socket.io-client';
-import { API_BASE_URL } from '../../config/constants';
+import { API_BASE_URL, getSocketUrl } from '../../config/constants';
 import { useAuth } from '../../context/AuthContext';
 import CreateGroup from '../../components/layout/create_group/create_group';
 import AddMember from '../../components/layout/add_member/add_member';
@@ -11,14 +11,6 @@ import SendInvitation from '../../components/layout/send_invitation/send_invitat
 import StudyInvitation from '../../components/layout/study_invitation/study_invitation';
 
 const CURATED_EMOJIS = ['😄', '😂', '👍', '❤️', '🔥', '💪', '✅', '🎨', '💻', '🚀', '📚', '📝', '💡', '👑', '🌟', '👏', '🎉', '👋'];
-
-const USER_PROFILES = {
-    'gs': { name: 'Sara Gebremedhin', initials: 'SG', avatarBg: '#3b82f6', online: true },
-    'at': { name: 'Abebe Tadesse', initials: 'AT', avatarBg: '#8b5cf6', online: true },
-    'yb': { name: 'Yonas Bekele', initials: 'YB', avatarBg: '#0d9488', online: true },
-    'mh': { name: 'Meron Haile', initials: 'MH', avatarBg: '#f97316', online: false },
-    'ta': { name: 'Tigist Alemu', initials: 'TA', avatarBg: '#a855f7', online: true }
-};
 
 function Chat({
     hideSidebar = false,
@@ -36,22 +28,60 @@ function Chat({
     const darkMode = propDarkMode !== undefined ? propDarkMode : localDarkMode;
     const setDarkMode = propSetDarkMode !== undefined ? propSetDarkMode : setLocalDarkMode;
     const [searchQuery, setSearchQuery] = useState('');
+    const [studentsList, setStudentsList] = useState([]);
 
     const { accessToken, refreshAccessToken, user: authUser } = useAuth();
     const tokenRef = useRef(accessToken);
     tokenRef.current = accessToken;
 
-    // Chat identity = the logged-in user. Falls back to the demo persona
-    // ('gs') only when no session exists (dev/demo mode).
-    const currentUser = {
-        id: authUser?.id || 'gs',
-        name: authUser?.fullName || 'Sara Gebremedhin',
-        initials: authUser?.initials || (authUser?.fullName || 'SG').trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase() || 'U',
+    const currentUser = useMemo(() => ({
+        id: authUser?.id || 'guest',
+        name: authUser?.fullName || authUser?.name || authUser?.email || 'User',
+        initials: authUser?.initials || (authUser?.fullName || authUser?.name || 'U').trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase() || 'U',
         avatarBg: authUser?.avatarBg || '#3b82f6'
-    };
+    }), [authUser?.id, authUser?.fullName, authUser?.name, authUser?.email, authUser?.initials, authUser?.avatarBg]);
+    
     const currentUserRef = useRef(currentUser);
     currentUserRef.current = currentUser;
     const isAuthedRef = useRef(!!authUser);
+
+    useEffect(() => {
+        const fetchStudents = async () => {
+            try {
+                const res = await fetch(`${API_BASE_URL}/users/students`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        setStudentsList(data);
+                    }
+                }
+            } catch (err) {
+                console.warn('Failed to load students in chat:', err);
+            }
+        };
+        fetchStudents();
+    }, []);
+
+    const USER_PROFILES = useMemo(() => {
+        const map = {};
+        if (currentUser.id) {
+            map[currentUser.id] = {
+                name: currentUser.name,
+                initials: currentUser.initials,
+                avatarBg: currentUser.avatarBg,
+                online: true,
+            };
+        }
+        studentsList.forEach(s => {
+            map[s.id] = {
+                name: s.fullName || s.name || s.email,
+                initials: s.initials || (s.fullName ? s.fullName.slice(0, 2).toUpperCase() : 'ST'),
+                avatarBg: s.avatarBg || '#3b82f6',
+                online: true,
+            };
+        });
+        return map;
+    }, [currentUser, studentsList]);
 
     // Fetch wrapper that attaches the JWT and silently refreshes once on 401
     const apiFetch = async (url, options = {}) => {
@@ -186,15 +216,58 @@ function Chat({
     });
 
     const [groupMemberRoles, setGroupMemberRoles] = useState({});
+    const [isEditingGroupInfo, setIsEditingGroupInfo] = useState(false);
+    const [editGroupName, setEditGroupName] = useState('');
+    const [editGroupDesc, setEditGroupDesc] = useState('');
 
-    const handleToggleAdminRole = (memberId) => {
+    const handleStartEditGroupInfo = () => {
+        setEditGroupName(activeItem.name || '');
+        setEditGroupDesc(activeItem.description || activeItem.subtitle || '');
+        setIsEditingGroupInfo(true);
+    };
+
+    const handleSaveGroupInfo = () => {
+        if (!editGroupName.trim()) {
+            if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+            setToastMessage('Group name cannot be empty');
+            toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+            return;
+        }
+
+        apiFetch(`${API_BASE_URL}/chat/groups/${activeId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: editGroupName.trim(),
+                description: editGroupDesc.trim()
+            })
+        })
+        .then(res => {
+            if (res.ok) {
+                setStudyGroups(prev => prev.map(g => (g.id === activeId ? { ...g, name: editGroupName.trim(), description: editGroupDesc.trim(), subtitle: editGroupDesc.trim() } : g)));
+                setIsEditingGroupInfo(false);
+                if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+                setToastMessage('Group information updated!');
+                toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+            } else {
+                return res.json().then(err => { throw new Error(err.message || 'Failed to update group info'); });
+            }
+        })
+        .catch(err => {
+            if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+            setToastMessage(err.message || 'Failed to update group');
+            toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+        });
+    };
+
+    const handleToggleAdminRole = (memberId, customPermissions) => {
         const currentRole = groupMemberRoles[`${activeId}-${memberId}`] || 'MEMBER';
         const newRole = currentRole === 'ADMIN' ? 'MEMBER' : 'ADMIN';
         
         apiFetch(`${API_BASE_URL}/chat/groups/${activeId}/members/${memberId}/role`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: newRole })
+            body: JSON.stringify({ role: newRole, permissions: customPermissions })
         })
         .then(res => {
             if (res.ok) {
@@ -202,10 +275,19 @@ function Chat({
                     ...prev,
                     [`${activeId}-${memberId}`]: newRole
                 }));
-                showToast(`${USER_PROFILES[memberId]?.name} is now a ${newRole.toLowerCase()}!`, '👑');
+                const userObj = USER_PROFILES[memberId];
+                if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+                setToastMessage(`${userObj?.name || memberId} is now ${newRole === 'ADMIN' ? 'an Admin' : 'a Member'}!`);
+                toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+            } else {
+                return res.json().then(err => { throw new Error(err.message || 'Failed to update member role'); });
             }
         })
-        .catch(err => console.error('Failed to update member role:', err));
+        .catch(err => {
+            if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+            setToastMessage(err.message || 'Failed to update role');
+            toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+        });
     };
 
     const simSpeakerIntervalRef = useRef(null);
@@ -307,32 +389,7 @@ function Chat({
                 });
             }
 
-            // Simulate peer users joining the call to showcase real-time voice chat indicators
-            setTimeout(() => {
-                const userAT = USER_PROFILES['at'];
-                if (socketRef.current) {
-                    socketRef.current.emit('joinVoiceChat', {
-                        groupId: activeId,
-                        userId: 'at',
-                        username: userAT.name,
-                        initials: userAT.initials,
-                        avatarBg: userAT.avatarBg
-                    });
-                }
-            }, 1500);
 
-            setTimeout(() => {
-                const userYB = USER_PROFILES['yb'];
-                if (socketRef.current) {
-                    socketRef.current.emit('joinVoiceChat', {
-                        groupId: activeId,
-                        userId: 'yb',
-                        username: userYB.name,
-                        initials: userYB.initials,
-                        avatarBg: userYB.avatarBg
-                    });
-                }
-            }, 3000);
 
             // Periodically refresh participant speaking states
             simSpeakerIntervalRef.current = setInterval(() => {
@@ -640,7 +697,7 @@ function Chat({
 
     // Initialize socket connection and load groups
     useEffect(() => {
-        socketRef.current = io(API_BASE_URL, {
+        socketRef.current = io(getSocketUrl(), {
             auth: (cb) => cb({ token: tokenRef.current }),
             transports: ['websocket', 'polling']
         });
@@ -688,7 +745,8 @@ function Chat({
             };
 
             setMessagesByGroup(prev => {
-                const key = msg.groupId;
+                const key = msg.roomId || msg.groupId;
+                if (!key) return prev;
                 const existing = prev[key] || [];
                 // If we already have this server-confirmed id, skip
                 if (existing.some(m => m.id === msg.id)) return prev;
@@ -802,17 +860,22 @@ function Chat({
         });
 
         socketRef.current.on('groupCreated', (group) => {
-            const parent = studyGroupsRef.current.find(m => group?.id && group.id.startsWith(`${m.id}-`));
-            if (parent) {
-                const topicId = group.id.substring(parent.id.length + 1);
+            if (!group) return;
+            const isTopic = group.isTopic || (group.icon && group.icon.startsWith('topic:')) || (group.id && group.id.includes('-') && !group.id.includes('6666'));
+            if (isTopic) {
+                const parentId = group.parentGroupId || (group.icon && group.icon.startsWith('topic:') ? group.icon.split(':')[1] : group.id.split('-')[0]);
+                const topicId = group.topicId || (group.icon && group.icon.startsWith('topic:') ? group.icon.split(':')[2] : group.id.split('-').slice(1).join('-')) || group.name.toLowerCase().replace(/\s+/g, '-');
+                
                 setTopicsByGroup(prev => {
-                    const existing = prev[parent.id] || [];
+                    const existing = prev[parentId] || [
+                        { id: 'general', name: 'General', icon: '#', color: '#64748b', subtitle: 'General chat room', time: '' }
+                    ];
                     if (existing.some(t => t.id === topicId)) return prev;
                     return {
                         ...prev,
-                        [parent.id]: [
+                        [parentId]: [
                             ...existing,
-                            { id: topicId, name: group.name, icon: group.icon || '#', color: group.color || '#0d9488', subtitle: group.description || 'Topic created', time: '' }
+                            { id: topicId, name: group.name, icon: '#', color: group.colorAccent || group.color || '#0d9488', subtitle: group.description || 'Topic created', time: '' }
                         ]
                     };
                 });
@@ -851,6 +914,15 @@ function Chat({
                                 members: group.members?.map(m => m.userId) || []
                             }
                         ];
+                    });
+                    setTopicsByGroup(prev => {
+                        if (prev[group.id]) return prev;
+                        return {
+                            ...prev,
+                            [group.id]: [
+                                { id: 'general', name: 'General', icon: '#', color: '#64748b', subtitle: 'General chat room', time: '' }
+                            ]
+                        };
                     });
                 }
             }
@@ -900,6 +972,61 @@ function Chat({
             }));
         });
 
+        socketRef.current.on('topicCreated', (data) => {
+            const { groupId, topic } = data || {};
+            if (!groupId || !topic) return;
+            const tId = topic.slug || topic.id;
+            setTopicsByGroup(prev => {
+                const existing = prev[groupId] || [
+                    { id: 'general', name: 'General', icon: '#', color: '#64748b', subtitle: 'General chat room', time: '' }
+                ];
+                if (existing.some(t => t.id === tId)) return prev;
+                return {
+                    ...prev,
+                    [groupId]: [
+                        ...existing,
+                        {
+                            id: tId,
+                            name: topic.name,
+                            icon: topic.icon || '#',
+                            color: topic.color || '#0d9488',
+                            subtitle: `Topic: ${topic.name}`,
+                            time: ''
+                        }
+                    ]
+                };
+            });
+        });
+
+        socketRef.current.on('topicDeleted', (data) => {
+            const { groupId, topicId } = data || {};
+            if (!groupId || !topicId) return;
+            setTopicsByGroup(prev => {
+                const existing = prev[groupId] || [];
+                return {
+                    ...prev,
+                    [groupId]: existing.filter(t => t.id !== topicId && t.slug !== topicId)
+                };
+            });
+            setActiveTopicId(prev => (prev === topicId ? 'general' : prev));
+        });
+
+        socketRef.current.on('groupUpdated', (data) => {
+            const { groupId, name, description, icon, color } = data || {};
+            if (!groupId) return;
+            setStudyGroups(prev =>
+                prev.map(g => (g.id === groupId ? { ...g, name: name || g.name, description: description !== undefined ? description : g.description, icon: icon || g.icon, color: color || g.color } : g))
+            );
+        });
+
+        socketRef.current.on('membersAdded', (data) => {
+            const { groupId, members } = data || {};
+            if (!groupId || !Array.isArray(members)) return;
+            setStudyGroups(prev =>
+                prev.map(g => (g.id === groupId ? { ...g, members: members.map(m => m.userId || m) } : g))
+            );
+        });
+
         socketRef.current.on('voiceChatUserJoined', (data) => {
             const { groupId, userId, username, initials, avatarBg } = data;
             setActiveVoiceChat(prev => {
@@ -947,96 +1074,71 @@ function Chat({
             .then(data => {
                 if (data && Array.isArray(data)) {
                     const mainGroups = data.filter(g => {
-                        const isTopic = data.some(other => other.id !== g.id && g.id.startsWith(`${other.id}-`));
-                        return !isTopic;
-                    });
-                    const subGroups = data.filter(g => {
-                        const isTopic = data.some(other => other.id !== g.id && g.id.startsWith(`${other.id}-`));
-                        return isTopic;
+                        const isTopic = g.isTopic || (g.icon && g.icon.startsWith('topic:')) || (g.id && g.id.includes('-') && !g.id.includes('6666') && data.some(other => other.id !== g.id && g.id.startsWith(`${other.id}-`)));
+                        if (isTopic) return false;
+                        const isClassroom = g.icon === '🏫' || g.id === 'flutter' || g.id.startsWith('class-');
+                        if (isClassroom) return true;
+                        // Teachers are strictly restricted from seeing student peer study groups
+                        const isTeacherUser = (currentUserRef.current?.role || '').toLowerCase() === 'teacher';
+                        if (isTeacherUser) return false;
+                        const curId = currentUserRef.current?.id || effectiveUserId;
+                        const memberIds = (g.members || []).map(m => (typeof m === 'object' ? (m.userId || m.id) : m));
+                        return memberIds.includes(curId) || g.ownerId === curId || g.createdById === curId;
                     });
 
-                    // Load all classrooms dynamically from localStorage and defaults
-                    let localStoredClassrooms = [];
-                    try {
-                        const raw = localStorage.getItem('temar_classrooms');
-                        if (raw) {
-                            const parsed = JSON.parse(raw);
-                            if (Array.isArray(parsed)) {
-                                localStoredClassrooms = parsed.map(c => ({
-                                    id: (c.title || '').toLowerCase().replace(/\s+/g, '-'),
-                                    name: c.title,
-                                    subtitle: c.subject || c.description || 'Classroom chat',
-                                    isClassroom: true,
-                                    icon: '🏫',
-                                    time: ''
-                                }));
-                            }
-                        }
-                    } catch (e) {}
                     const loadedClassrooms = [];
                     const mappedGroups = [];
+                    const tempTopicsByGroup = {};
 
                     mainGroups.forEach(g => {
                         const isClassroom = g.icon === '🏫' || g.id === 'flutter' || g.id.startsWith('class-');
                         const item = {
                             id: g.id,
                             name: g.name,
+                            description: g.description || '',
                             subtitle: g.description || 'No messages yet',
                             isClassroom: isClassroom,
                             time: '',
                             icon: isClassroom ? '🏫' : (g.icon || '📚'),
-                            color: g.color || '#8b5cf6',
-                            members: g.members?.map(m => m.userId) || []
+                            color: g.color || g.colorAccent || '#8b5cf6',
+                            ownerId: g.ownerId || g.createdById,
+                            myRole: g.myRole || 'MEMBER',
+                            myPermissions: g.myPermissions || {},
+                            members: g.members?.map(m => (typeof m === 'object' ? m.userId : m)) || []
                         };
                         if (isClassroom) {
                             loadedClassrooms.push(item);
                         } else {
                             mappedGroups.push(item);
                         }
+
+                        // Attach topics for this group
+                        const rawTopics = Array.isArray(g.topics) && g.topics.length > 0
+                            ? g.topics
+                            : [{ id: 'general', name: 'General', icon: '#', color: '#64748b', subtitle: 'General chat room', time: '' }];
+
+                        tempTopicsByGroup[g.id] = rawTopics;
                     });
 
                     setClassrooms(loadedClassrooms);
                     setStudyGroups(mappedGroups);
+                    setTopicsByGroup(tempTopicsByGroup);
                     
                     const rolesMap = {};
                     data.forEach(g => {
+                        if (g.ownerId) {
+                            rolesMap[`${g.id}-${g.ownerId}`] = 'OWNER';
+                        }
+                        if (g.createdById) {
+                            rolesMap[`${g.id}-${g.createdById}`] = 'OWNER';
+                        }
                         g.members?.forEach(m => {
-                            rolesMap[`${g.id}-${m.userId}`] = m.role || 'MEMBER';
+                            const uId = typeof m === 'object' ? m.userId : m;
+                            const role = (typeof m === 'object' && m.role) ? m.role : 'MEMBER';
+                            rolesMap[`${g.id}-${uId}`] = role;
                         });
                     });
                     setGroupMemberRoles(prev => ({ ...prev, ...rolesMap }));
-
-                    // Build topics map dynamically
-                    const tempTopicsByGroup = {};
-                    mainGroups.forEach(g => {
-                        tempTopicsByGroup[g.id] = [
-                            { id: 'general', name: 'General', icon: '#', color: '#64748b', subtitle: 'General chat room', time: '' }
-                        ];
-                    });
-
-                    subGroups.forEach(sub => {
-                        const parent = mainGroups.find(m => sub.id.startsWith(`${m.id}-`));
-                        if (parent) {
-                            const topicId = sub.id.substring(parent.id.length + 1);
-                            if (tempTopicsByGroup[parent.id]) {
-                                if (topicId !== 'general') {
-                                    if (!tempTopicsByGroup[parent.id].some(t => t.id === topicId)) {
-                                        tempTopicsByGroup[parent.id].push({
-                                            id: topicId,
-                                            name: sub.name,
-                                            icon: sub.icon || '#',
-                                            color: sub.color || '#64748b',
-                                            subtitle: sub.description || 'No messages yet',
-                                            time: ''
-                                        });
-                                    }
-                                }
-                            }
-                        }
-                    });
-
-                    setTopicsByGroup(tempTopicsByGroup);
-                    setStudyGroups(mappedGroups);
                 }
             })
             .catch(err => console.error('Failed to load study groups:', err));
@@ -1257,7 +1359,7 @@ function Chat({
 
     const activeMessagesKey = activeItem.isClassroom ? activeId : `${activeId}-${activeTopicId}`;
     const activeMessages = useMemo(() => {
-        const rawList = messagesByGroup[activeMessagesKey] || messagesByGroup[activeId] || [];
+        const rawList = messagesByGroup[activeMessagesKey] || [];
         const seenIds = new Set();
         const deduped = [];
         for (const m of rawList) {
@@ -1267,7 +1369,7 @@ function Chat({
             deduped.push(m);
         }
         return deduped;
-    }, [messagesByGroup, activeMessagesKey, activeId]);
+    }, [messagesByGroup, activeMessagesKey]);
 
     const pinnedMessage = activeMessages.find(m => m.isPinned);
 
@@ -1875,18 +1977,61 @@ function Chat({
             apiFetch(`${API_BASE_URL}/chat/groups/${groupId}`, {
                 method: 'DELETE'
             })
-            .catch(err => console.error('Failed to delete group:', err));
+            .then(res => {
+                if (res.ok) {
+                    setStudyGroups(prev => prev.filter(g => g.id !== groupId));
+                    if (activeId === groupId) {
+                        setActiveId('flutter');
+                    }
+                    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+                    setToastMessage('Study group deleted.');
+                    toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+                } else {
+                    return res.json().then(err => { throw new Error(err.message || 'Failed to delete group'); });
+                }
+            })
+            .catch(err => {
+                if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+                setToastMessage(err.message || 'Failed to delete group');
+                toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+            });
         }
     };
 
     // Handle deleting a study topic channel
     const handleDeleteTopic = (groupId, topicId, e) => {
         if (e) e.stopPropagation();
+        if (topicId === 'general') {
+            if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+            setToastMessage('The General topic cannot be deleted.');
+            toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+            return;
+        }
         if (window.confirm(`Are you sure you want to delete the topic "${topicId}"?`)) {
-            apiFetch(`${API_BASE_URL}/chat/groups/${groupId}-${topicId}`, {
+            apiFetch(`${API_BASE_URL}/chat/groups/${groupId}/topics/${topicId}`, {
                 method: 'DELETE'
             })
-            .catch(err => console.error('Failed to delete topic:', err));
+            .then(res => {
+                if (res.ok) {
+                    setTopicsByGroup(prev => {
+                        const list = prev[groupId] || [];
+                        return { ...prev, [groupId]: list.filter(t => t.id !== topicId && t.slug !== topicId) };
+                    });
+                    if (activeTopicId === topicId) {
+                        setActiveTopicId('general');
+                    }
+                    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+                    setToastMessage('Topic deleted.');
+                    toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+                } else {
+                    return res.json().then(err => { throw new Error(err.message || 'Failed to delete topic'); });
+                }
+            })
+            .catch(err => {
+                if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+                setToastMessage(err.message || 'Failed to delete topic');
+                toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+            });
         }
     };
 
@@ -2530,7 +2675,8 @@ function Chat({
                                                         }}>{lastMsgPreview}</span>
                                                     </div>
                                                     {(() => {
-                                                        const myRole = groupMemberRoles[`${selectedGroupIdForTopics}-gs`] || 'OWNER';
+                                                        const activeGroupObj = studyGroups.find(g => g.id === selectedGroupIdForTopics);
+                                                        const myRole = groupMemberRoles[`${selectedGroupIdForTopics}-${currentUser.id}`] || (activeGroupObj?.ownerId === currentUser.id ? 'OWNER' : 'MEMBER');
                                                         if (t.id !== 'general' && (myRole === 'OWNER' || myRole === 'ADMIN')) {
                                                             return (
                                                                 <button
@@ -2645,8 +2791,8 @@ function Chat({
                                             <span className="item-subtitle">{g.subtitle}</span>
                                         </div>
                                         {(() => {
-                                            const gRole = groupMemberRoles[`${g.id}-gs`] || 'OWNER';
-                                            if (gRole === 'OWNER' || gRole === 'ADMIN') {
+                                            const gRole = groupMemberRoles[`${g.id}-${currentUser.id}`] || (g.ownerId === currentUser.id ? 'OWNER' : 'MEMBER');
+                                            if (gRole === 'OWNER') {
                                                 return (
                                                     <button
                                                         className="delete-group-btn"
@@ -2884,7 +3030,7 @@ function Chat({
                             <div className="pinned-title">Pinned Message</div>
                             <div className="pinned-snippet">{pinnedMessage.text || pinnedMessage.fileName || 'Pinned attachment'}</div>
                         </div>
-                        {(groupMemberRoles[`${activeId}-gs`] === 'OWNER' || groupMemberRoles[`${activeId}-gs`] === 'ADMIN') && (
+                        {(groupMemberRoles[`${activeId}-${currentUser.id}`] === 'OWNER' || groupMemberRoles[`${activeId}-${currentUser.id}`] === 'ADMIN' || activeItem.ownerId === currentUser.id) && (
                             <button
                                 className="pinned-unpin-btn"
                                 onClick={(e) => {
@@ -3989,43 +4135,95 @@ function Chat({
                             >
                                 {activeItem.icon || '👥'}
                             </div>
-                            <h3 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '700' }}>{activeItem.name}</h3>
-                            <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                                {activeItem.members ? activeItem.members.length : 1} members · {
-                                    activeItem.members ? activeItem.members.filter(m => USER_PROFILES[m]?.online).length : 1
-                                } online
-                            </p>
+                            {isEditingGroupInfo ? (
+                                <div style={{ width: '100%', marginBottom: '10px' }}>
+                                    <label className="field-label-text">Group Name</label>
+                                    <input
+                                        type="text"
+                                        value={editGroupName}
+                                        onChange={(e) => setEditGroupName(e.target.value)}
+                                        className="inchat-search-input"
+                                        style={{ width: '100%', marginTop: '4px', marginBottom: '8px', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--search-bg)' }}
+                                    />
+                                    <label className="field-label-text">Group Description</label>
+                                    <textarea
+                                        value={editGroupDesc}
+                                        onChange={(e) => setEditGroupDesc(e.target.value)}
+                                        rows={2}
+                                        style={{ width: '100%', marginTop: '4px', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--search-bg)', color: 'var(--text-main)', fontSize: '13px', resize: 'vertical' }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '10px' }}>
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveGroupInfo}
+                                            style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '600', borderRadius: '6px', border: 'none', backgroundColor: 'var(--active-item-border)', color: 'white', cursor: 'pointer' }}
+                                        >
+                                            Save Changes
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsEditingGroupInfo(false)}
+                                            style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '600', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                                        <h3 style={{ margin: '0 0 4px 0', fontSize: '20px', fontWeight: '700' }}>{activeItem.name}</h3>
+                                        {(groupMemberRoles[`${activeId}-${currentUser.id}`] === 'OWNER' || activeItem.ownerId === currentUser.id) && (
+                                            <button
+                                                type="button"
+                                                onClick={handleStartEditGroupInfo}
+                                                style={{ background: 'none', border: 'none', color: 'var(--active-item-border)', cursor: 'pointer', padding: '2px' }}
+                                                title="Edit Group Info"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                                        {activeItem.members ? activeItem.members.length : 1} members · {
+                                            activeItem.members ? activeItem.members.filter(m => USER_PROFILES[m]?.online).length : 1
+                                        } online
+                                    </p>
+                                </>
+                            )}
                         </div>
 
                         {/* Description & Invite Link Section */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-                            {/* Description */}
-                            <div>
-                                <label className="field-label-text">Group Description</label>
-                                <div style={{ fontSize: '13.5px', color: 'var(--text-main)', backgroundColor: 'var(--search-bg)', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', marginTop: '6px', lineHeight: '1.45' }}>
-                                    {activeItem.subtitle || "No description set for this group."}
-                                </div>
-                            </div>
-
-                            {/* Invite Link */}
-                            <div>
-                                <label className="field-label-text">Invite Link</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                                    <div style={{ flex: 1, fontSize: '13px', color: 'var(--text-main)', backgroundColor: 'var(--search-bg)', padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {`${window.location.origin}/join/${activeId}`}
+                        {!isEditingGroupInfo && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+                                {/* Description */}
+                                <div>
+                                    <label className="field-label-text">Group Description</label>
+                                    <div style={{ fontSize: '13.5px', color: 'var(--text-main)', backgroundColor: 'var(--search-bg)', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', marginTop: '6px', lineHeight: '1.45' }}>
+                                        {activeItem.description || activeItem.subtitle || "No description set for this group."}
                                     </div>
-                                    <button
-                                        type="button"
-                                        className="modal-action-button cancel-button"
-                                        style={{ padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '38px' }}
-                                        onClick={handleCopyInvite}
-                                        title="Copy Link"
-                                    >
-                                        <Copy size={16} />
-                                    </button>
+                                </div>
+
+                                {/* Invite Link */}
+                                <div>
+                                    <label className="field-label-text">Invite Link</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                                        <div style={{ flex: 1, fontSize: '13px', color: 'var(--text-main)', backgroundColor: 'var(--search-bg)', padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {`${window.location.origin}/join/${activeId}`}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="modal-action-button cancel-button"
+                                            style={{ padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '38px' }}
+                                            onClick={handleCopyInvite}
+                                            title="Copy Link"
+                                        >
+                                            <Copy size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Members Block */}
                         <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
@@ -4392,49 +4590,53 @@ function Chat({
                 userProfiles={USER_PROFILES}
                 invitedMembers={activeItem.members ? activeItem.members.filter(m => m !== currentUser.id) : ['at', 'yb']}
                 onCreate={(topicName) => {
-                    const topicId = topicName.toLowerCase().replace(/\s+/g, '-');
                     const targetGroupKey = selectedGroupIdForTopics || activeId;
 
-                    apiFetch(`${API_BASE_URL}/chat/groups`, {
+                    apiFetch(`${API_BASE_URL}/chat/groups/${targetGroupKey}/topics`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            id: `${targetGroupKey}-${topicId}`,
                             name: topicName,
-                            description: `Topic room for ${topicName}`,
-                            icon: '#',
-                            color: '#0d9488',
-                            classroomId: classroomId || undefined,
-                            memberIds: []
+                            color: '#0d9488'
                         })
                     })
-                    .then(res => res.json())
-                    .then(group => {
+                    .then(res => {
+                        if (!res.ok) {
+                            return res.json().then(err => { throw new Error(err.message || 'Failed to create topic'); });
+                        }
+                        return res.json();
+                    })
+                    .then(topic => {
+                        const tId = topic.slug || topic.id;
                         const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                         setTopicsByGroup(prev => {
                             const currentTopics = prev[targetGroupKey] || [];
-                            if (currentTopics.some(t => t.id === topicId)) return prev;
+                            if (currentTopics.some(t => t.id === tId)) return prev;
                             return {
                                 ...prev,
                                 [targetGroupKey]: [
                                     ...currentTopics,
-                                    { id: topicId, name: topicName, icon: topicName[0].toUpperCase(), color: '#0d9488', subtitle: 'Topic created', time: timeString }
+                                    { id: tId, name: topic.name, icon: '#', color: '#0d9488', subtitle: 'Topic created', time: timeString }
                                 ]
                             };
                         });
                         setMessagesByGroup(prev => ({
                             ...prev,
-                            [`${targetGroupKey}-${topicId}`]: [
+                            [`${targetGroupKey}-${tId}`]: [
                                 { id: `sys-topic-${Date.now()}`, type: 'system', text: `Topic "${topicName}" created` }
                             ]
                         }));
-                        setActiveTopicId(topicId);
+                        setActiveTopicId(tId);
                         setCreatedTopicName(topicName);
                         if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
                         setToastMessage(`Topic "${topicName}" created!`);
                         toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 2500);
                     })
-                    .catch(err => console.error('Failed to persist topic:', err));
+                    .catch(err => {
+                        if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+                        setToastMessage(err.message || 'Failed to create topic');
+                        toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 3000);
+                    });
                 }}
             />
 

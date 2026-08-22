@@ -15,6 +15,8 @@ import { SyncModule } from './modules/sync/sync.module';
 import { MaterialsModule } from './modules/materials/materials.module';
 import { AssignmentsModule } from './modules/assignments/assignments.module';
 import { QuizzesModule } from './modules/quizzes/quizzes.module';
+import { ClassroomsModule } from './modules/classrooms/classrooms.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { QuizzesModule } from './modules/quizzes/quizzes.module';
     MaterialsModule,
     AssignmentsModule,
     QuizzesModule,
+    ClassroomsModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [

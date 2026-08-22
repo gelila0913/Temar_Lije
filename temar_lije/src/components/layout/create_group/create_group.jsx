@@ -11,20 +11,18 @@ const COLORS = [
     { value: '#be185d', name: 'pink' }
 ];
 
-const MOCK_MEMBERS = [
-    { id: 'at', name: 'Abebe Tadesse', status: 'online', initials: 'AT', avatarBg: '#8b5cf6' },
-    { id: 'mh', name: 'Meron Haile', status: 'last seen 2h ago', initials: 'MH', avatarBg: '#f97316' },
-    { id: 'yb', name: 'Yonas Bekele', status: 'online', initials: 'YB', avatarBg: '#0d9488' },
-    { id: 'ta', name: 'Tigist Alemu', status: 'online', initials: 'TA', avatarBg: '#a855f7' }
-];
-
-function CreateGroup({ isOpen, onClose, onCreate }) {
+function CreateGroup({ isOpen, onClose, onCreate, availableMembers = [], currentUserId, isUserOnline }) {
     const [groupName, setGroupName] = useState('');
     const [selectedIcon, setSelectedIcon] = useState('📚');
     const [selectedColor, setSelectedColor] = useState('#06b6d4');
-    const [selectedMembers, setSelectedMembers] = useState(['at', 'mh', 'yb']);
+    const [selectedMembers, setSelectedMembers] = useState([]);
 
     if (!isOpen) return null;
+
+    // Filter out self and teachers from the candidate members to invite
+    const candidateMembers = (availableMembers || []).filter(
+        (m) => m.id !== currentUserId && (m.role || '').toUpperCase() !== 'TEACHER'
+    );
 
     const handleToggleMember = (id) => {
         setSelectedMembers(prev =>
@@ -44,22 +42,22 @@ function CreateGroup({ isOpen, onClose, onCreate }) {
         setGroupName('');
         setSelectedIcon('📚');
         setSelectedColor('#06b6d4');
-        setSelectedMembers(['at', 'mh', 'yb']);
+        setSelectedMembers([]);
     };
 
     return (
-        <div className="create-group-modal-overlay">
-            <div className="create-group-modal-content">
+        <div className="create-group-modal-overlay" onClick={onClose}>
+            <div className="create-group-modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="create-group-header">
-                    <h2>Create Study Group</h2>
-                    <p>Start a private group for projects, assignments, and peer study.</p>
+                    <h2>Create Private Study Group</h2>
+                    <p>Start a private group for projects and peer study. Only invited members can see and join this group.</p>
                 </div>
 
                 <div className="create-group-form-field">
                     <label className="field-label-text">Group Name</label>
                     <input
                         type="text"
-                        placeholder="e.g. packages"
+                        placeholder="e.g. Mobile App Project Team"
                         className="create-group-text-input"
                         value={groupName}
                         onChange={(e) => setGroupName(e.target.value)}
@@ -105,37 +103,55 @@ function CreateGroup({ isOpen, onClose, onCreate }) {
 
                 <div className="create-group-members-area">
                     <label className="field-label-text">
-                        Add Members <span className="selected-members-counter">({selectedMembers.length} selected)</span>
+                        Invite Students <span className="selected-members-counter">({selectedMembers.length} selected)</span>
                     </label>
                     <div className="members-scrollable-container">
-                        {MOCK_MEMBERS.map(member => {
-                            const isChecked = selectedMembers.includes(member.id);
-                            return (
-                                <div
-                                    key={member.id}
-                                    className={`member-selection-row ${isChecked ? 'active' : ''}`}
-                                    onClick={() => handleToggleMember(member.id)}
-                                >
-                                    <div className="member-avatar-badge" style={{ backgroundColor: member.avatarBg }}>
-                                        {member.initials}
-                                        <span className={`member-online-dot ${member.status === 'online' ? 'online' : 'offline'}`} />
-                                    </div>
-                                    <div className="member-details-column">
-                                        <span className="member-row-name">{member.name}</span>
-                                        <span className={`member-row-status ${member.status === 'online' ? 'online-text' : ''}`}>
-                                            {member.status}
-                                        </span>
-                                    </div>
-                                    <div className="member-checkbox-container">
-                                        <div className={`member-checkbox-circle ${isChecked ? 'checked' : ''}`}>
-                                            {isChecked && (
-                                                <Check size={10} strokeWidth={4} color="white" />
-                                            )}
+                        {candidateMembers.length === 0 ? (
+                            <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                                No other students enrolled in this class yet. You can still create the group now.
+                            </div>
+                        ) : (
+                            candidateMembers.map(member => {
+                                const isChecked = selectedMembers.includes(member.id);
+                                const online = isUserOnline ? isUserOnline(member.id) : false;
+                                return (
+                                    <div
+                                        key={member.id}
+                                        className={`member-selection-row ${isChecked ? 'active' : ''}`}
+                                        onClick={() => handleToggleMember(member.id)}
+                                    >
+                                        <div className="member-avatar-badge" style={{ backgroundColor: member.avatarBg || '#3b82f6', position: 'relative' }}>
+                                            {member.initials || 'ST'}
+                                            <span
+                                                style={{
+                                                    position: 'absolute',
+                                                    bottom: '-1px',
+                                                    right: '-1px',
+                                                    width: '9px',
+                                                    height: '9px',
+                                                    borderRadius: '50%',
+                                                    backgroundColor: online ? '#22c55e' : '#94a3b8',
+                                                    border: '2px solid #ffffff'
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="member-details-column">
+                                            <span className="member-row-name">{member.name || member.email}</span>
+                                            <span className="member-row-status" style={{ color: online ? '#15803d' : '#94a3b8', fontWeight: 600, fontSize: '11px' }}>
+                                                {online ? 'online' : 'offline'}
+                                            </span>
+                                        </div>
+                                        <div className="member-checkbox-container">
+                                            <div className={`member-checkbox-circle ${isChecked ? 'checked' : ''}`}>
+                                                {isChecked && (
+                                                    <Check size={10} strokeWidth={4} color="white" />
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 
@@ -149,7 +165,7 @@ function CreateGroup({ isOpen, onClose, onCreate }) {
                         onClick={handleCreate}
                         disabled={!groupName.trim()}
                     >
-                        Create & Invite ({selectedMembers.length})
+                        Create Group {selectedMembers.length > 0 ? `& Invite (${selectedMembers.length})` : ''}
                     </button>
                 </div>
             </div>

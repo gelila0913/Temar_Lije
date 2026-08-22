@@ -1,5 +1,8 @@
 export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  import.meta.env?.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.location.port === '5173'
+    ? 'http://localhost:3000'
+    : '/api');
 
 /**
  * Custom error class containing API response status and error message
@@ -76,7 +79,7 @@ export const authApi = {
    * Register a new user
    * @param {{ fullName: string, email: string, password: string, role: string }} data
    */
-  async register({ fullName, email, password, role }) {
+  async register({ fullName, email, password, role, classroomCode }) {
     // Backend RegisterRole enum is 'STUDENT' or 'TEACHER'
     const normalizedRole = (role || 'student').toUpperCase();
     return request('/auth/register', {
@@ -86,6 +89,7 @@ export const authApi = {
         email: email.trim().toLowerCase(),
         password,
         role: normalizedRole,
+        ...(classroomCode ? { classroomCode: classroomCode.trim().toUpperCase() } : {}),
       },
     });
   },

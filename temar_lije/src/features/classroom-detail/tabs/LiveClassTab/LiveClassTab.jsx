@@ -17,7 +17,7 @@ export default function LiveClassTab({
   currentUser = { name: 'User', role: 'Student' },
   onJoinLiveClass,
   onTakeAttendance,
-  onCreateQuiz,
+  _onCreateQuiz,
 }) {
   const {
     isLiveActive,

@@ -5,6 +5,7 @@ import {
   Delete,
   Param,
   Body,
+  Req,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
@@ -48,13 +49,16 @@ export class AssignmentsController {
   @Get('assignments/class/:classId')
   @Get('assignments/:classId')
   @Get('classrooms/:classId/assignments')
-  async getAssignmentsByClass(@Param('classId') classId: string) {
-    return await this.assignmentsService.getAssignmentsByClass(classId);
+  async getAssignmentsByClass(@Param('classId') classId: string, @Req() req: any) {
+    const authHeader = req.headers?.authorization;
+    const userId = req.user?.id || req.user?.sub;
+    return await this.assignmentsService.getAssignmentsByClass(classId, userId, authHeader);
   }
 
   /**
    * POST /assignments/:id/submit
    * Student endpoint to submit work. Supports PDF file upload (to ./uploads/submissions), link URL, or both.
+   * Strict single-submission rule enforced on backend.
    */
   @Post('assignments/:id/submit')
   @UseInterceptors(FileInterceptor('file', createMulterOptions('submissions')))
@@ -63,14 +67,17 @@ export class AssignmentsController {
     @UploadedFile() file: any,
     @Body('studentId') studentId: string,
     @Body('linkUrl') linkUrl?: string,
+    @Req() req?: any,
   ) {
+    const authHeader = req?.headers?.authorization;
+    const effectiveStudentId = req?.user?.id || req?.user?.sub || studentId;
     const pdfPath = file ? `/uploads/submissions/${file.filename}` : undefined;
 
     return await this.assignmentsService.submitAssignment(assignmentId, {
-      studentId,
+      studentId: effectiveStudentId,
       pdfPath,
       linkUrl,
-    });
+    }, authHeader);
   }
 
   /**
@@ -92,4 +99,3 @@ export class AssignmentsController {
     return await this.assignmentsService.deleteAssignment(assignmentId);
   }
 }
-
