@@ -48,13 +48,21 @@ export default function TeacherMemberTab({ classroom, currentUser }) {
   }, [loadMembers]);
 
   const handleRemove = useCallback(
-    async (id) => {
+    async (member) => {
+      const studentId = member.id;
+      const studentName = member.name || member.email || 'this student';
+      const confirmed = window.confirm(
+        `⚠️ Remove Student & Revoke Account?\n\nAre you sure you want to remove "${studentName}" from this classroom?\n\nOnce removed, their student account and classroom enrollment will be completely revoked, and they will need to register as a new student.`
+      );
+      if (!confirmed) return;
+
       if (removingId) return;
-      setRemovingId(id);
+      setRemovingId(studentId);
       setRemoveError('');
       try {
-        await removeClassroomMember(classId, id);
-        setMembers((prev) => prev.filter((m) => m.id !== id));
+        await removeClassroomMember(classId, studentId);
+        setMembers((prev) => prev.filter((m) => m.id !== studentId));
+        alert(`Student "${studentName}" has been removed and their student account was revoked.`);
       } catch (err) {
         setRemoveError('Could not remove this member. Try again.');
       } finally {
@@ -122,7 +130,7 @@ export default function TeacherMemberTab({ classroom, currentUser }) {
                 <button
                   type="button"
                   className={styles.removeButton}
-                  onClick={() => handleRemove(member.id)}
+                  onClick={() => handleRemove(member)}
                   disabled={removingId !== null}
                   aria-busy={isRemoving}
                   aria-label={`Remove ${member.name || 'member'}`}

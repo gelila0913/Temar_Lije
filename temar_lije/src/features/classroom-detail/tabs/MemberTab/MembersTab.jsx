@@ -9,7 +9,7 @@ import CreateGroup from '../../../../components/layout/create_group/create_group
 import StudyInvitation from '../../../../components/layout/study_invitation/study_invitation.jsx';
 import SendInvitation from '../../../../components/layout/send_invitation/send_invitation.jsx';
 
-import { getClassroomMembers } from '../../../../services/apiClient';
+import { getClassroomMembers, removeClassroomMember } from '../../../../services/apiClient';
 import { usePresence } from '../../../../hooks/usePresence';
 
 export default function MembersTab({ darkMode, setDarkMode, classroom, currentUser }) {
@@ -17,6 +17,7 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
   const classroomId = String(classroom?.id || classroom?.code || 'flutter');
   const effectiveUserId = user?.id || currentUser?.id || 'guest';
   const effectiveUserName = user?.fullName || currentUser?.name || 'User';
+  const isTeacher = (user?.role || currentUser?.role || '').toUpperCase() === 'TEACHER' || classroom?.createdById === effectiveUserId;
   const currentUserInitials = user?.initials
     || currentUser?.initials
     || (effectiveUserName || '').trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase()
@@ -286,6 +287,22 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
         }
       })
       .catch(err => console.error('Failed to delete group in MembersTab:', err));
+    }
+  };
+
+  const handleRemoveStudent = async (member) => {
+    const studentName = member.name || member.email || 'this student';
+    const confirmed = window.confirm(
+      `⚠️ Remove Student & Revoke Account?\n\nAre you sure you want to remove "${studentName}" from this classroom?\n\nOnce removed, their student account and classroom enrollment will be completely revoked, and they will need to register as a new student.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await removeClassroomMember(classroomId, member.id);
+      setRealMembers((prev) => prev.filter((m) => m.id !== member.id));
+      alert(`Student "${studentName}" has been removed and their student account was revoked.`);
+    } catch (err) {
+      alert(`Failed to remove student: ${err?.message || 'Error occurred'}`);
     }
   };
 
@@ -573,6 +590,32 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
                                   {online ? 'online' : 'offline'}
                                 </span>
                               </div>
+
+                              {isTeacher && !isYou && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveStudent(member)}
+                                  title="Remove student from classroom & revoke account"
+                                  style={{
+                                    marginLeft: 'auto',
+                                    backgroundColor: '#fee2e2',
+                                    color: '#dc2626',
+                                    border: '1px solid #fca5a5',
+                                    borderRadius: '8px',
+                                    padding: '6px 12px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                >
+                                  <Trash2 size={13} />
+                                  <span>Remove</span>
+                                </button>
+                              )}
                             </div>
                           );
                         })}

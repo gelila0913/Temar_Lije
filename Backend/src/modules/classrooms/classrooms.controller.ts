@@ -80,8 +80,10 @@ export class ClassroomsController {
   async removeClassroomMember(
     @Param('classroomId') classroomId: string,
     @Param('userId') userId: string,
+    @Req() req: any,
   ) {
-    return await this.classroomsService.removeStudentFromClassroom(classroomId, userId);
+    const requesterId = req.user?.id || req.user?.sub;
+    return await this.classroomsService.removeStudentFromClassroom(classroomId, userId, requesterId);
   }
 
   /**

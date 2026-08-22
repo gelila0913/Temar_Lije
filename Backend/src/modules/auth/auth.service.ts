@@ -146,6 +146,27 @@ export class AuthService {
       this.logger.log(`Account auto-verified for ${user.email} since SMTP is not configured.`);
     }
 
+    // Auto-enroll student into classroom if code was provided during signup
+    if (dto.classroomCode && (dto.role as any) === 'STUDENT') {
+      try {
+        const cleanCode = dto.classroomCode.trim().toUpperCase();
+        const classroom = await this.prisma.classroom.findUnique({
+          where: { inviteCode: cleanCode },
+        });
+        if (classroom && !classroom.deletedAt) {
+          await this.prisma.classroomMember.create({
+            data: {
+              classroomId: classroom.id,
+              userId: user.id,
+            },
+          });
+          this.logger.log(`Student ${user.email} auto-enrolled in classroom ${classroom.title} (${cleanCode}).`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Failed auto-enrollment for ${user.email}: ${err?.message}`);
+      }
+    }
+
     return {
       message: isVerifiedImmediately
         ? 'Registration successful! You can now sign in.'

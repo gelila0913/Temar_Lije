@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 
 function isValidUUID(str: string): boolean {
@@ -396,22 +396,61 @@ export class ClassroomsService {
   }
 
   /**
-   * Remove / un-enroll a student from a classroom
+   * Remove / un-enroll a student from a classroom.
+   * When a teacher removes a student, the student's account is permanently deleted
+   * so they lose access and must register anew as a new student.
    */
-  async removeStudentFromClassroom(classroomId: string, studentId: string) {
+  async removeStudentFromClassroom(classroomId: string, studentId: string, teacherId?: string) {
     const classroom = await this.resolveClassroom(classroomId);
     if (!classroom) {
       throw new NotFoundException('Classroom not found');
     }
 
+    if (teacherId) {
+      const teacherUser = await this.resolveUser(teacherId);
+      const isOwner = classroom.createdById === teacherUser?.id;
+      const isTeacher = isOwner || (await this.databaseService.classroomTeacher.findUnique({
+        where: {
+          classroomId_userId: {
+            classroomId: classroom.id,
+            userId: teacherUser?.id || '',
+          },
+        },
+      }));
+
+      if (!isTeacher && teacherUser?.role !== 'ADMIN' && teacherUser?.role !== 'TEACHER') {
+        throw new ForbiddenException('Only teachers or classroom owners have the power to remove students.');
+      }
+    }
+
     const user = await this.resolveUser(studentId);
     if (user) {
-      await this.databaseService.classroomMember.deleteMany({
-        where: {
-          classroomId: classroom.id,
-          userId: user.id,
-        },
-      });
+      // If the removed user is a student, delete their account completely
+      if (user.role === 'STUDENT') {
+        try {
+          await this.databaseService.user.delete({
+            where: { id: user.id },
+          });
+        } catch {
+          // Manual fallback if relation constraints require manual unlinking
+          await this.databaseService.classroomMember.deleteMany({
+            where: { userId: user.id },
+          });
+          await this.databaseService.studyGroupMember.deleteMany({
+            where: { userId: user.id },
+          });
+          await this.databaseService.user.delete({
+            where: { id: user.id },
+          }).catch(() => {});
+        }
+      } else {
+        await this.databaseService.classroomMember.deleteMany({
+          where: {
+            classroomId: classroom.id,
+            userId: user.id,
+          },
+        });
+      }
     }
 
     return await this.getClassroomMembers(classroom.id);

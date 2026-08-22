@@ -79,7 +79,7 @@ export const authApi = {
    * Register a new user
    * @param {{ fullName: string, email: string, password: string, role: string }} data
    */
-  async register({ fullName, email, password, role }) {
+  async register({ fullName, email, password, role, classroomCode }) {
     // Backend RegisterRole enum is 'STUDENT' or 'TEACHER'
     const normalizedRole = (role || 'student').toUpperCase();
     return request('/auth/register', {
@@ -89,6 +89,7 @@ export const authApi = {
         email: email.trim().toLowerCase(),
         password,
         role: normalizedRole,
+        ...(classroomCode ? { classroomCode: classroomCode.trim().toUpperCase() } : {}),
       },
     });
   },

@@ -42,4 +42,7 @@ export class RegisterDto {
 
   @IsEnum(RegisterRole, { message: 'Role must be either STUDENT or TEACHER' })
   role!: RegisterRole;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+  classroomCode?: string;
 }
