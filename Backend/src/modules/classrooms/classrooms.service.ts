@@ -457,7 +457,7 @@ export class ClassroomsService {
   }
 
   /**
-   * Delete or leave a classroom
+   * Delete or leave a classroom (Teacher / Owner only)
    */
   async deleteClassroom(classroomId: string, userId?: string) {
     const classroom = await this.resolveClassroom(classroomId);
@@ -465,8 +465,39 @@ export class ClassroomsService {
       throw new NotFoundException('Classroom not found');
     }
 
-    return await this.databaseService.classroom.delete({
-      where: { id: classroom.id },
-    });
+    if (userId) {
+      const user = await this.resolveUser(userId);
+      const isOwner = classroom.createdById === user?.id;
+      const isTeacher = isOwner || (await this.databaseService.classroomTeacher.findUnique({
+        where: {
+          classroomId_userId: {
+            classroomId: classroom.id,
+            userId: user?.id || '',
+          },
+        },
+      }));
+
+      if (!isTeacher && user?.role !== 'ADMIN' && user?.role !== 'TEACHER') {
+        throw new ForbiddenException('Only the teacher or owner of this classroom can delete it.');
+      }
+    }
+
+    try {
+      return await this.databaseService.classroom.delete({
+        where: { id: classroom.id },
+      });
+    } catch {
+      // Fallback cleanup if cascade constraints require manual unlinking
+      await this.databaseService.classroomMember.deleteMany({ where: { classroomId: classroom.id } }).catch(() => {});
+      await this.databaseService.classroomTeacher.deleteMany({ where: { classroomId: classroom.id } }).catch(() => {});
+      await this.databaseService.studyGroup.deleteMany({ where: { classroomId: classroom.id } }).catch(() => {});
+      await this.databaseService.material.deleteMany({ where: { classroomId: classroom.id } }).catch(() => {});
+      await this.databaseService.assignment.deleteMany({ where: { classroomId: classroom.id } }).catch(() => {});
+      await this.databaseService.quiz.deleteMany({ where: { classroomId: classroom.id } }).catch(() => {});
+      await this.databaseService.attendanceSession.deleteMany({ where: { classroomId: classroom.id } }).catch(() => {});
+      return await this.databaseService.classroom.delete({
+        where: { id: classroom.id },
+      });
+    }
   }
 }

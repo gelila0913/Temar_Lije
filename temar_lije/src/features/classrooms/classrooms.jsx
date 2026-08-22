@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Users, KeyRound, Loader2, AlertCircle } from 'lucide-react';
+import { Plus, Users, KeyRound, Loader2, AlertCircle, Trash2 } from 'lucide-react';
 import './classrooms.css';
 import CreateClassRoom from '../../components/layout/create_class_room/create_class_room';
 import JoinClassRoom from '../../components/layout/join_class_room/join_class_room';
 import Header from '../../components/common/Header/header.jsx';
 import StudyBuddy from '../study-buddy/study-buddy.jsx';
-import { getClassrooms, createClassroom, joinClassroom } from '../../services/apiClient';
+import { getClassrooms, createClassroom, joinClassroom, deleteClassroom } from '../../services/apiClient';
 
 export default function Classrooms({ 
   currentUser = { name: 'User', role: 'Teacher' }, 
@@ -83,6 +83,23 @@ export default function Classrooms({
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     setTimeout(() => setCopiedCode(''), 2000);
+  };
+
+  const handleDeleteClassroom = async (e, classroom) => {
+    e.stopPropagation();
+    const classTitle = classroom.title || classroom.name || 'this classroom';
+    const confirmed = window.confirm(
+      `⚠️ Delete Classroom?\n\nAre you sure you want to permanently delete "${classTitle}"?\n\nAll classroom materials, assignments, enrolled student records, and study groups will be deleted. This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteClassroom(classroom.id);
+      setClassroomsList((prev) => prev.filter((c) => c.id !== classroom.id));
+      alert(`Classroom "${classTitle}" has been deleted.`);
+    } catch (err) {
+      alert(`Failed to delete classroom: ${err.message || 'Error occurred'}`);
+    }
   };
 
   return (
@@ -193,26 +210,53 @@ export default function Classrooms({
                       {classroom.description && <p className="card-description">{classroom.description}</p>}
                     </div>
 
-                    <div className="card-footer">
-                      <div className="card-type">
+                    <div className="card-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <div className="card-type" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Users size={14} />
                         <span>{isTeacher ? 'Host / Teacher' : 'Enrolled Student'}</span>
                       </div>
 
-                      {isTeacher ? (
-                        <span 
-                          className="card-code" 
-                          onClick={(e) => handleCopyCode(e, classroom.code || classroom.inviteCode)}
-                          title="Click to copy invitation code for students"
-                          style={{ cursor: 'pointer' }}
-                        >
-                          {copiedCode === (classroom.code || classroom.inviteCode) ? 'Copied!' : (classroom.code || classroom.inviteCode)}
-                        </span>
-                      ) : (
-                        <span className="card-code" style={{ opacity: 0.85 }}>
-                          Code: {classroom.code || classroom.inviteCode}
-                        </span>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {isTeacher && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteClassroom(e, classroom)}
+                            title="Delete this classroom"
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              color: '#dc2626',
+                              border: '1px solid rgba(239, 68, 68, 0.25)',
+                              borderRadius: '6px',
+                              padding: '4px 8px',
+                              fontSize: '11.5px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <Trash2 size={12} />
+                            <span>Delete</span>
+                          </button>
+                        )}
+
+                        {isTeacher ? (
+                          <span 
+                            className="card-code" 
+                            onClick={(e) => handleCopyCode(e, classroom.code || classroom.inviteCode)}
+                            title="Click to copy invitation code for students"
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {copiedCode === (classroom.code || classroom.inviteCode) ? 'Copied!' : (classroom.code || classroom.inviteCode)}
+                          </span>
+                        ) : (
+                          <span className="card-code" style={{ opacity: 0.85 }}>
+                            Code: {classroom.code || classroom.inviteCode}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
