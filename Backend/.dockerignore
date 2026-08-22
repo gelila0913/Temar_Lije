@@ -1,0 +1,49 @@
+# Git and repository metadata
+.git
+.gitignore
+.github
+
+# Node dependencies and build artifacts (prevents copying host binaries into Linux container)
+node_modules
+dist
+build
+*.tsbuildinfo
+
+# Test suites, coverage reports, and logs
+test
+coverage
+.nyc_output
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+server.log
+
+# Environment variables & secrets (CRITICAL: prevent leaking host secrets)
+.env
+.env.*
+!.env.example
+
+# IDE and Editor configuration
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+
+# Local database files & runtime uploads
+*.db
+*.db-journal
+uploads/*
+!uploads/.gitkeep
+
+# Documentation & Docker files
+Dockerfile*
+.dockerignore
+README.md
+AUTH_SETUP_AND_TESTING_GUIDE.md

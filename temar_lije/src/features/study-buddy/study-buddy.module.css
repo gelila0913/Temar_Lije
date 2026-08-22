@@ -188,11 +188,12 @@
   border: 1px solid var(--sb-border);
   border-radius: var(--sb-radius-lg);
   box-shadow: var(--sb-shadow-card);
-  min-height: 480px;
+  min-height: 520px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 56px 24px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 32px 24px;
 }
 
 .mainCardInner {
@@ -202,6 +203,31 @@
   text-align: center;
   width: 100%;
   max-width: 470px;
+  margin: auto;
+}
+
+.activeChatContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 460px;
+  width: 100%;
+}
+
+.chatScrollArea {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding-right: 6px;
+}
+
+.chatInputForm {
+  display: flex;
+  gap: 10px;
+  width: 100%;
 }
 
 .heading {

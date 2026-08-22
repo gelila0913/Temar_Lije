@@ -21,14 +21,14 @@
 
 .minimizeFloatingBtn {
   position: absolute;
-  top: 20px;
-  right: 240px;
+  top: 16px;
+  right: 16px;
   z-index: 10000;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: rgba(30, 41, 59, 0.9);
+  padding: 8px 14px;
+  background: rgba(30, 41, 59, 0.92);
   backdrop-filter: blur(12px);
   color: #f8fafc;
   font-size: 12px;
@@ -48,10 +48,11 @@
 /* MINIMIZED PIP DOCK */
 .minimizedDock {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: 16px;
+  right: 16px;
   z-index: 9999;
-  width: 340px;
+  width: min(340px, calc(100vw - 32px));
+  max-width: 340px;
   background: #0f172a;
   border-radius: 14px;
   border: 1px solid rgba(59, 130, 246, 0.3);
@@ -446,4 +447,31 @@
 .btnIconSmall {
   width: 14px;
   height: 14px;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 600px) {
+  .fullScreenOverlay {
+    padding: 8px;
+  }
+
+  .minimizeFloatingBtn {
+    top: 12px;
+    right: 12px;
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .dockedStreamViewport {
+    height: 140px;
+  }
+
+  .modalContainer {
+    max-width: 100%;
+    margin: 0 8px;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
 }

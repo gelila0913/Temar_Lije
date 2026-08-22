@@ -1,9 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -41,6 +42,7 @@ model User {
   quizSubmissions            QuizSubmission[]
   studyGroupMemberships      StudyGroupMember[]
   createdStudyGroups         StudyGroup[]
+  createdTopics              GroupTopic[]           @relation("TopicCreator")
   attendances                Attendance[]
 
   @@map("users")
@@ -226,6 +228,7 @@ model AttendanceRecord {
 model StudyGroup {
   id          String             @id @default(uuid())
   name        String
+  description String?
   classroomId String?            @map("classroom_id")
   createdById String?            @map("created_by_id")
   icon        String?
@@ -233,6 +236,7 @@ model StudyGroup {
   createdAt   DateTime           @default(now()) @map("created_at")
   messages    ChatMessage[]
   members     StudyGroupMember[]
+  topics      GroupTopic[]
   classroom   Classroom?         @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   createdBy   User?              @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
@@ -243,12 +247,32 @@ model StudyGroupMember {
   id           String     @id @default(uuid())
   studyGroupId String     @map("study_group_id")
   userId       String     @map("user_id")
+  role         String     @default("MEMBER") // OWNER, ADMIN, MEMBER
+  permissions  String?    // JSON string for admin permissions
   joinedAt     DateTime   @default(now()) @map("joined_at")
   studyGroup   StudyGroup @relation(fields: [studyGroupId], references: [id], onDelete: Cascade)
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([studyGroupId, userId])
   @@map("study_group_members")
+}
+
+model GroupTopic {
+  id           String      @id @default(uuid())
+  studyGroupId String      @map("study_group_id")
+  name         String
+  slug         String
+  icon         String?     @default("#")
+  color        String?     @default("#0d9488")
+  createdById  String?     @map("created_by_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
+  deletedAt    DateTime?   @map("deleted_at")
+  studyGroup   StudyGroup  @relation(fields: [studyGroupId], references: [id], onDelete: Cascade)
+  createdBy    User?       @relation("TopicCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([studyGroupId, slug])
+  @@map("group_topics")
 }
 
 model ChatMessage {

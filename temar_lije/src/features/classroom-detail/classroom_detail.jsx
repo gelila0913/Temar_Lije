@@ -11,6 +11,7 @@ import TeacherMemberTab from './tabs/TeacherMemberTab/TeacherMemberTab.jsx';
 import StudyBuddy from '../study-buddy/study-buddy.jsx';
 import AssignmentSubmissionsPage from '../../pages/AssignmentSubmissionsPage.jsx';
 import { useLiveClass } from '../../context/LiveClassContext.jsx';
+import { deleteClassroom } from '../../services/apiClient';
 
 export default function ClassroomDetail({
   classroom = { title: "Flutter", subject: "Widget · widget structure" },
@@ -26,6 +27,22 @@ export default function ClassroomDetail({
   const [viewingSubmissionsAssignmentId, setViewingSubmissionsAssignmentId] = useState(null);
 
   const { isLiveActive, setIsMinimized } = useLiveClass();
+
+  const handleDeleteClassroom = async () => {
+    const classTitle = classroom.title || 'this classroom';
+    const confirmed = window.confirm(
+      `⚠️ Delete Classroom?\n\nAre you sure you want to permanently delete "${classTitle}"?\n\nAll materials, assignments, student records, and chat channels will be deleted. This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await deleteClassroom(classroom.id);
+      alert(`Classroom "${classTitle}" has been deleted.`);
+      onBackToClassrooms?.();
+    } catch (err) {
+      alert(`Failed to delete classroom: ${err.message || 'Error occurred'}`);
+    }
+  };
 
   useEffect(() => {
     const handleNavigateTab = (e) => {
@@ -115,6 +132,8 @@ export default function ClassroomDetail({
             activeTab={activeDetailTab}
             onTabChange={handleDetailTabChange}
             onBack={onBackToClassrooms}
+            isTeacher={isTeacher}
+            onDelete={handleDeleteClassroom}
           />
 
           {/* Detail Tab Contents with Integrated Props */}
@@ -159,11 +178,7 @@ export default function ClassroomDetail({
               />
             )}
             {activeDetailTab === 'members' && (
-              isTeacher ? (
-                <TeacherMemberTab darkMode={darkMode} classroom={classroom} currentUser={currentUser} />
-              ) : (
-                <MembersTab darkMode={darkMode} setDarkMode={setDarkMode} classroom={classroom} currentUser={currentUser} />
-              )
+              <MembersTab darkMode={darkMode} setDarkMode={setDarkMode} classroom={classroom} currentUser={currentUser} />
             )}
           </main>
         </>

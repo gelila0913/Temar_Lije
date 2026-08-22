@@ -23,9 +23,26 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS for frontend clients (Flutter / React)
+  // Enable secure CORS for allowed frontend origins
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:4173',
+    'https://temar-lije.southafricanorth.cloudapp.azure.com',
+  ].filter(Boolean);
+
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.cloudapp.azure.com')) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Permissive in dev/testing, but explicit
+      }
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });

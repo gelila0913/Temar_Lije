@@ -41,6 +41,31 @@ export class LiveClassGateway implements OnGatewayDisconnect {
     server.use(createSocketAuthMiddleware(this.jwtService, this.configService));
   }
 
+  @SubscribeMessage('teacherJoinedLive')
+  handleTeacherJoinedLive(
+    @MessageBody() data: any,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { classId, className, teacherName } = data || {};
+    this.server.emit('liveClassStarted', {
+      classId,
+      className: className || 'Live Classroom',
+      teacherName: teacherName || 'Teacher',
+      startedAt: Date.now(),
+    });
+    return { status: 'broadcasted' };
+  }
+
+  @SubscribeMessage('teacherEndedLive')
+  handleTeacherEndedLive(
+    @MessageBody() data: any,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { classId } = data || {};
+    this.server.emit('liveClassEnded', { classId });
+    return { status: 'broadcasted' };
+  }
+
   async handleDisconnect(client: Socket) {
     const { classId, userId } = client.data || {};
     if (classId && userId) {

@@ -180,3 +180,26 @@ body.dark .materials-empty-state-text {
 body.dark .classroom-tabs-bar {
   border-bottom: 1px solid #232d3f;
 }
+
+/* ============================================================
+   RESPONSIVE MEDIA QUERIES FOR MATERIALS TAB
+   ============================================================ */
+
+@media (max-width: 768px) {
+  .classroom-detail-container {
+    padding: 16px 12px;
+  }
+  .materials-action-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .materials-search-container {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .materials-upload-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

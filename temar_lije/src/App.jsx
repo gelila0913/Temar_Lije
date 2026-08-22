@@ -10,22 +10,21 @@ import ClassroomDetail from './features/classroom-detail/classroom_detail.jsx';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { LiveClassProvider } from './context/LiveClassContext.jsx';
 import LiveClassGlobalOverlay from './components/live-class/LiveClassGlobalOverlay.jsx';
+import LiveClassNotification from './components/live-class/LiveClassNotification.jsx';
 
 function MainApp() {
   const { user, login, register, logout, isAuthenticated, isLoading } = useAuth();
 
-  // Extract query params and tokens on initial load
-  const [urlToken, setUrlToken] = useState(() => {
-    return new URLSearchParams(window.location.search).get('token') || '';
-  });
+  // Extract query params and tokens
+  const getUrlToken = () => new URLSearchParams(window.location.search).get('token') || '';
+  const [urlToken, setUrlToken] = useState(getUrlToken);
 
   // Track active screen: 'landing' | 'signin' | 'create_account' | 'forgot_password' | 'reset_password' | 'verify_email' | 'classrooms' | 'classroom_detail'
-  const [currentScreen, setCurrentScreen] = useState(() => {
+  const determineScreenFromLocation = () => {
     const path = window.location.pathname;
     const search = window.location.search;
     if (path.includes('/oauth/callback')) return 'classrooms';
     if (path.includes('/join/')) {
-      // Stash the invite id; chat.jsx consumes it once groups are loaded
       const inviteId = decodeURIComponent(path.split('/join/')[1].split('/')[0]);
       if (inviteId) {
         sessionStorage.setItem('pending_join_id', inviteId);
@@ -37,13 +36,35 @@ function MainApp() {
     if (path.includes('/forgot-password')) return 'forgot_password';
     if (path.includes('/signup') || path.includes('/create-account')) return 'create_account';
     if (path.includes('/signin') || search.includes('error=oauth_failed')) return 'signin';
+    if (path.includes('/classrooms/') && path.split('/classrooms/')[1]) return 'classroom_detail';
+    if (path.includes('/classrooms')) return 'classrooms';
     return localStorage.getItem('temar_user') ? 'classrooms' : 'landing';
+  };
+
+  const [currentScreen, setCurrentScreen] = useState(determineScreenFromLocation);
+
+  const [selectedClassroom, setSelectedClassroom] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('temar_selected_classroom');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
 
-  const [selectedClassroom, setSelectedClassroom] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
   const [initialEmail, setInitialEmail] = useState('');
   const [authNotice, setAuthNotice] = useState('');
+
+  // Handle browser Back / Forward navigation (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      setUrlToken(getUrlToken());
+      setCurrentScreen(determineScreenFromLocation());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     if (darkMode) {
@@ -79,7 +100,7 @@ function MainApp() {
     await login({ email, password });
     setAuthNotice('');
     setCurrentScreen('classrooms');
-    window.history.replaceState({}, '', '/');
+    window.history.pushState({}, '', '/');
   };
 
   const handleCreateAccount = async ({ fullName, role, email, password }) => {
@@ -87,32 +108,48 @@ function MainApp() {
     setInitialEmail(email);
     setAuthNotice('Registration successful. Please check your email to verify your account before signing in.');
     setCurrentScreen('signin');
-    window.history.replaceState({}, '', '/signin');
+    window.history.pushState({}, '', '/signin');
   };
 
   const handleVerifyEmailSuccess = (msg) => {
     setAuthNotice(msg || 'Email verified successfully! You can now sign in.');
     setCurrentScreen('signin');
-    window.history.replaceState({}, '', '/signin');
+    window.history.pushState({}, '', '/signin');
   };
 
   const handleResetPasswordSuccess = (result) => {
     if (result?.user) {
       setAuthNotice('');
       setCurrentScreen('classrooms');
-      window.history.replaceState({}, '', '/');
+      window.history.pushState({}, '', '/');
     } else {
       setAuthNotice('Password reset successfully! Please sign in with your new password.');
       setCurrentScreen('signin');
-      window.history.replaceState({}, '', '/signin');
+      window.history.pushState({}, '', '/signin');
     }
   };
 
   const handleLogout = async () => {
     await logout();
     setAuthNotice('');
+    sessionStorage.removeItem('temar_selected_classroom');
+    setSelectedClassroom(null);
     setCurrentScreen('landing');
-    window.history.replaceState({}, '', '/');
+    window.history.pushState({}, '', '/');
+  };
+
+  const handleSelectClassroom = (classroom) => {
+    setSelectedClassroom(classroom);
+    if (classroom) {
+      sessionStorage.setItem('temar_selected_classroom', JSON.stringify(classroom));
+    }
+    setCurrentScreen('classroom_detail');
+    window.history.pushState({}, '', `/classrooms/${classroom?.id || 'detail'}`);
+  };
+
+  const handleBackToClassrooms = () => {
+    setCurrentScreen('classrooms');
+    window.history.pushState({}, '', '/');
   };
 
   const currentUser = user
@@ -210,10 +247,7 @@ function MainApp() {
           currentUser={currentUser}
           darkMode={darkMode}
           setDarkMode={setDarkMode}
-          onSelectClassroom={(classroom) => {
-            setSelectedClassroom(classroom);
-            setCurrentScreen('classroom_detail');
-          }}
+          onSelectClassroom={handleSelectClassroom}
           onLogout={handleLogout} 
         />
       )}
@@ -223,8 +257,8 @@ function MainApp() {
           currentUser={currentUser}
           darkMode={darkMode}
           setDarkMode={setDarkMode}
-          classroom={selectedClassroom || { title: "Flutter", subject: "Widget · widget structure" }}
-          onBackToClassrooms={() => setCurrentScreen('classrooms')}
+          classroom={selectedClassroom || { id: 'default', title: "Flutter", subject: "Widget · widget structure" }}
+          onBackToClassrooms={handleBackToClassrooms}
           onLogout={handleLogout}
         />
       )}
@@ -238,6 +272,7 @@ export default function App() {
       <LiveClassProvider>
         <MainApp />
         <LiveClassGlobalOverlay />
+        <LiveClassNotification />
       </LiveClassProvider>
     </AuthProvider>
   );

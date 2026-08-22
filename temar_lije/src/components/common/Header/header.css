@@ -140,13 +140,44 @@
     color: #111827;
 }
 
-/* Responsive UI adjustments for mobile */
-@media (max-width: 600px) {
+/* Responsive UI adjustments for tablet and mobile */
+@media (max-width: 900px) {
+    .classmind-header {
+        padding: 10px 16px;
+    }
+    .header-left {
+        gap: 16px;
+    }
+    .nav-item {
+        padding: 5px 10px;
+        font-size: 13px;
+    }
+}
 
+@media (max-width: 640px) {
+    .classmind-header {
+        padding: 8px 12px;
+        height: 56px;
+    }
     .logo-text,
     .user-name,
     .user-role {
         display: none;
+    }
+    .header-left {
+        gap: 10px;
+    }
+    .header-right {
+        gap: 8px;
+    }
+    .theme-toggle-btn-header {
+        margin-right: 4px;
+        padding: 6px;
+    }
+    .nav-item {
+        padding: 4px 8px;
+        font-size: 12px;
+        gap: 4px;
     }
 }
 

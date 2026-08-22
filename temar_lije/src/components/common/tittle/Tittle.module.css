@@ -57,6 +57,14 @@
   padding: 4px;
   border-radius: 20px;
   gap: 2px;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabsContainer::-webkit-scrollbar {
+  display: none;
 }
 
 /* Tab Button Base Style */
@@ -72,6 +80,7 @@
   transition: all 0.2s ease-in-out;
   outline: none;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tabButton:hover {
@@ -84,6 +93,19 @@
   color: #0f172a;
   font-weight: 600;
   box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 768px) {
+  .headerContainer {
+    padding: 16px 16px 0 16px;
+  }
+  .title {
+    font-size: 22px;
+  }
+  .tabButton {
+    padding: 6px 14px;
+    font-size: 13px;
+  }
 }
 /* ---------------- Dark Mode ---------------- */
 

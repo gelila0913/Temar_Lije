@@ -1,90 +1,43 @@
 import {
   Controller,
-  Post,
   Get,
+  Post,
   Put,
   Delete,
   Body,
   Param,
-  Req,
   Query,
-  UseGuards,
-  UseInterceptors,
+  Req,
   UploadedFile,
+  UseInterceptors,
+  UseGuards,
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { extname } from 'path';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
-const { OptionalJwtAuthGuard } = require('../../common/guards/JwtAuthGuard');
+import { JwtAuthGuard } from '../../common/guards/JwtAuthGuard';
 
-const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; // 20 MB
-
-const ALLOWED_MIME_TYPES = new Set([
-  // images
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'image/svg+xml',
-  // audio (incl. MediaRecorder voice notes)
-  'audio/webm',
-  'audio/ogg',
-  'audio/wav',
-  'audio/x-wav',
-  'audio/mpeg',
-  'audio/mp4',
-  'audio/x-m4a',
-  'audio/aac',
-  // video
-  'video/mp4',
-  'video/webm',
-  'video/quicktime',
-  'video/x-msvideo',
-  'video/x-matroska',
-  // documents
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/rtf',
-  'text/plain',
-  // archives
-  'application/zip',
-  'application/x-rar-compressed',
-  'application/x-tar',
-  'application/gzip',
-  'application/x-7z-compressed',
+const ALLOWED_EXTENSIONS = new Set([
+  '.jpg', '.jpeg', '.png', '.gif', '.webp',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.txt', '.zip', '.tar', '.gz',
+  '.mp3', '.wav', '.ogg', '.m4a', '.webm', '.mp4',
 ]);
 
-const uploadStorage = diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = join(process.cwd(), 'uploads');
-    if (!existsSync(uploadPath)) {
-      mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    let ext = extname(file.originalname || '');
-    if (!ext && file.mimetype) {
-      if (file.mimetype.includes('mp4') || file.mimetype.includes('aac')) ext = '.mp4';
-      else if (file.mimetype.includes('ogg')) ext = '.ogg';
-      else if (file.mimetype.includes('wav')) ext = '.wav';
-      else if (file.mimetype.includes('audio') || file.mimetype.includes('webm')) ext = '.webm';
-      else if (file.mimetype.includes('png')) ext = '.png';
-      else if (file.mimetype.includes('jpeg') || file.mimetype.includes('jpg')) ext = '.jpg';
-      else if (file.mimetype.includes('pdf')) ext = '.pdf';
-    }
-    cb(null, `${uniqueSuffix}${ext || '.webm'}`);
-  },
-});
+const ALLOWED_MIME_PREFIXES = [
+  'image/', 'audio/', 'video/', 'text/',
+  'application/pdf', 'application/msword',
+  'application/vnd.openxmlformats-officedocument',
+  'application/vnd.ms-excel', 'application/vnd.ms-powerpoint',
+  'application/zip', 'application/x-zip-compressed',
+  'application/octet-stream',
+];
 
+@UseGuards(JwtAuthGuard)
 @Controller('chat')
-@UseGuards(OptionalJwtAuthGuard)
 export class ChatController {
   constructor(
     private readonly chatService: ChatService,
@@ -93,10 +46,22 @@ export class ChatController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file', {
-    storage: uploadStorage,
-    limits: { fileSize: MAX_UPLOAD_SIZE, files: 1 },
+    storage: diskStorage({
+      destination: './uploads',
+      filename: (req, file, cb) => {
+        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        const ext = extname(file.originalname).toLowerCase();
+        cb(null, `${uniqueSuffix}${ext}`);
+      },
+    }),
+    limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
     fileFilter: (req, file, cb) => {
-      if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
+      const ext = extname(file.originalname).toLowerCase();
+      if (ALLOWED_EXTENSIONS.has(ext)) {
+        return cb(null, true);
+      }
+      const mime = (file.mimetype || '').toLowerCase();
+      if (ALLOWED_MIME_PREFIXES.some((p) => mime.startsWith(p))) {
         return cb(null, true);
       }
       cb(
@@ -111,8 +76,7 @@ export class ChatController {
     if (!file) {
       return { error: 'No file uploaded' };
     }
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const fileUrl = `${baseUrl}/uploads/${file.filename}`;
+    const fileUrl = `/uploads/${file.filename}`;
     return {
       url: fileUrl,
       filename: file.filename,
@@ -124,6 +88,7 @@ export class ChatController {
 
   @Post('groups')
   async createGroup(@Body() createGroupDto: any, @Req() req: any) {
+    const actorId = req.user?.id || req.user?.sub || createGroupDto.creatorId;
     const group = await this.chatService.createGroup(
       createGroupDto.name,
       createGroupDto.description,
@@ -131,8 +96,11 @@ export class ChatController {
       createGroupDto.color,
       createGroupDto.memberIds || [],
       createGroupDto.id,
-      req.user?.id,
+      actorId,
       createGroupDto.classroomId,
+      createGroupDto.isTopic,
+      createGroupDto.parentGroupId,
+      createGroupDto.topicId,
     );
     this.chatGateway.server.emit('groupCreated', group);
     return group;
@@ -140,20 +108,160 @@ export class ChatController {
 
   @Get('groups')
   async getGroups(@Req() req: any, @Query('classroomId') classroomId?: string) {
-    return this.chatService.getGroups(req.user?.id, classroomId);
+    const actorId = req.user?.id || req.user?.sub;
+    return this.chatService.getGroups(actorId, classroomId);
+  }
+
+  @Put('groups/:id')
+  async updateGroup(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    const actorId = req.user?.id || req.user?.sub;
+    const updated = await this.chatService.updateGroup(
+      id,
+      {
+        name: body.name,
+        description: body.description,
+        icon: body.icon,
+        color: body.color,
+      },
+      actorId,
+    );
+    this.chatGateway.server.emit('groupUpdated', { groupId: id, ...updated });
+    return updated;
+  }
+
+  @Delete('groups/:id')
+  async deleteGroup(@Param('id') id: string, @Req() req: any) {
+    const actorId = req.user?.id || req.user?.sub;
+    const deleted = await this.chatService.deleteGroup(id, actorId);
+    this.chatGateway.broadcastGroupDeleted(id);
+    return deleted;
+  }
+
+  /**
+   * POST /chat/groups/:id/topics
+   * Create a permanent topic inside a group
+   */
+  @Post('groups/:id/topics')
+  async createTopic(
+    @Param('id') groupId: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    const actorId = req.user?.id || req.user?.sub;
+    if (!body?.name || !body.name.trim()) {
+      throw new BadRequestException('Topic name is required');
+    }
+    const topic = await this.chatService.createTopic(
+      groupId,
+      body.name,
+      body.icon,
+      body.color,
+      actorId,
+      body.topicId,
+    );
+    this.chatGateway.server.emit('topicCreated', { groupId, topic });
+    return topic;
+  }
+
+  /**
+   * DELETE /chat/groups/:id/topics/:topicId
+   * Delete a topic from a group
+   */
+  @Delete('groups/:id/topics/:topicId')
+  async deleteTopic(
+    @Param('id') groupId: string,
+    @Param('topicId') topicId: string,
+    @Req() req: any,
+  ) {
+    const actorId = req.user?.id || req.user?.sub;
+    const result = await this.chatService.deleteTopic(groupId, topicId, actorId);
+    this.chatGateway.server.emit('topicDeleted', { groupId, topicId });
+    return result;
+  }
+
+  /**
+   * POST /chat/groups/:id/members
+   * Add members to group
+   */
+  @Post('groups/:id/members')
+  async addMembers(
+    @Param('id') groupId: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    const actorId = req.user?.id || req.user?.sub;
+    const userIds = Array.isArray(body.userIds) ? body.userIds : [body.userId].filter(Boolean);
+    const members = await this.chatService.addMembers(groupId, userIds, actorId);
+    this.chatGateway.server.emit('membersAdded', { groupId, members });
+    return members;
+  }
+
+  /**
+   * DELETE /chat/groups/:groupId/members/:userId
+   * Remove a member from the group
+   */
+  @Delete('groups/:groupId/members/:userId')
+  async removeMember(
+    @Param('groupId') groupId: string,
+    @Param('userId') userId: string,
+    @Req() req: any,
+  ) {
+    const actorId = req.user?.id || req.user?.sub;
+    const deleted = await this.chatService.removeMember(
+      groupId,
+      userId,
+      actorId,
+    );
+    this.chatGateway.server.emit('memberRemoved', { groupId, userId });
+    return deleted;
+  }
+
+  /**
+   * PUT /chat/groups/:groupId/members/:userId/role
+   * Promote to Admin or Demote to Member with custom permissions
+   */
+  @Put('groups/:groupId/members/:userId/role')
+  async updateMemberRole(
+    @Param('groupId') groupId: string,
+    @Param('userId') userId: string,
+    @Body() body: any,
+    @Req() req: any,
+  ) {
+    const actorId = req.user?.id || req.user?.sub;
+    const updated = await this.chatService.updateMemberRole(
+      groupId,
+      userId,
+      body.role || 'MEMBER',
+      body.permissions,
+      actorId,
+    );
+    this.chatGateway.server.emit('roleUpdated', {
+      groupId,
+      userId,
+      role: body.role,
+      permissions: updated.permissions,
+    });
+    return updated;
   }
 
   @Get('history/:groupId')
   async getChatHistory(@Param('groupId') groupId: string, @Req() req: any) {
-    return this.chatService.getChatHistory(groupId, req.user?.id);
+    const actorId = req.user?.id || req.user?.sub;
+    return this.chatService.getChatHistory(groupId, actorId);
   }
 
   @Put('messages/:id/pin')
   async togglePinMessage(
     @Param('id') id: string,
     @Body() body: any,
+    @Req() req: any,
   ) {
-    const updated = await this.chatService.togglePinMessage(id, body.isPinned);
+    const actorId = req.user?.id || req.user?.sub;
+    const updated = await this.chatService.togglePinMessage(id, body.isPinned, actorId, body.groupId);
     this.chatGateway.server.emit('messagePinned', {
       messageId: id,
       isPinned: body.isPinned,
@@ -166,8 +274,10 @@ export class ChatController {
   async deleteMessage(
     @Param('id') id: string,
     @Body() body: any,
+    @Req() req: any,
   ) {
-    await this.chatService.deleteMessage(id);
+    const actorId = req.user?.id || req.user?.sub;
+    await this.chatService.deleteMessage(id, actorId, body?.groupId);
     if (body?.roomId) {
       this.chatGateway.server.to(body.roomId).emit('messageDeleted', { messageId: id });
     }
@@ -178,8 +288,10 @@ export class ChatController {
   async editMessage(
     @Param('id') id: string,
     @Body() body: any,
+    @Req() req: any,
   ) {
-    const updated = await this.chatService.editMessage(id, body.text);
+    const actorId = req.user?.id || req.user?.sub;
+    const updated = await this.chatService.editMessage(id, body.text, actorId);
     if (body?.roomId) {
       this.chatGateway.server.to(body.roomId).emit('messageUpdated', {
         messageId: id,
@@ -198,9 +310,10 @@ export class ChatController {
     if (!body?.emoji) {
       throw new BadRequestException('emoji is required');
     }
+    const actorId = req.user?.id || req.user?.sub;
     const reactions = await this.chatService.toggleReaction(
       id,
-      req.user?.id,
+      actorId,
       body.emoji,
     );
     if (body?.roomId) {
@@ -211,48 +324,4 @@ export class ChatController {
     }
     return reactions;
   }
-
-  @Put('groups/:groupId/members/:userId/role')
-  async updateMemberRole(
-    @Param('groupId') groupId: string,
-    @Param('userId') userId: string,
-    @Body() body: any,
-    @Req() req: any,
-  ) {
-    const updated = await this.chatService.updateMemberRole(
-      groupId,
-      userId,
-      body.role,
-      req.user?.id,
-    );
-    this.chatGateway.server.emit('roleUpdated', {
-      groupId,
-      userId,
-      role: body.role,
-    });
-    return updated;
-  }
-
-  @Delete('groups/:id')
-  async deleteGroup(@Param('id') id: string, @Req() req: any) {
-    const deleted = await this.chatService.deleteGroup(id, req.user?.id);
-    this.chatGateway.broadcastGroupDeleted(id);
-    return deleted;
-  }
-
-  @Delete('groups/:groupId/members/:userId')
-  async removeMember(
-    @Param('groupId') groupId: string,
-    @Param('userId') userId: string,
-    @Req() req: any,
-  ) {
-    const deleted = await this.chatService.removeMember(
-      groupId,
-      userId,
-      req.user?.id,
-    );
-    this.chatGateway.server.emit('memberRemoved', { groupId, userId });
-    return deleted;
-  }
 }
-
