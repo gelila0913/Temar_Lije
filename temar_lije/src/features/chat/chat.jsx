@@ -1078,6 +1078,9 @@ function Chat({
                         if (isTopic) return false;
                         const isClassroom = g.icon === '🏫' || g.id === 'flutter' || g.id.startsWith('class-');
                         if (isClassroom) return true;
+                        // Teachers are strictly restricted from seeing student peer study groups
+                        const isTeacherUser = (currentUserRef.current?.role || '').toLowerCase() === 'teacher';
+                        if (isTeacherUser) return false;
                         const curId = currentUserRef.current?.id || effectiveUserId;
                         const memberIds = (g.members || []).map(m => (typeof m === 'object' ? (m.userId || m.id) : m));
                         return memberIds.includes(curId) || g.ownerId === curId || g.createdById === curId;

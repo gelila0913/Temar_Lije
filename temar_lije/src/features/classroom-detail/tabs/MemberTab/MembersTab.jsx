@@ -637,14 +637,16 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
                         <p className="banner-desc">Collaborate with peers on class projects and group study.</p>
                       </div>
                     </div>
-                    <button 
-                      type="button" 
-                      className="new-group-action-btn" 
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                      onClick={() => setShowCreateGroup(true)}
-                    >
-                      <Plus size={16} /> New Group
-                    </button>
+                    {!isTeacher && (
+                      <button 
+                        type="button" 
+                        className="new-group-action-btn" 
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => setShowCreateGroup(true)}
+                      >
+                        <Plus size={16} /> New Group
+                      </button>
+                    )}
                   </div>
 
                   {/* Class General Chat Card */}
@@ -678,7 +680,13 @@ export default function MembersTab({ darkMode, setDarkMode, classroom, currentUs
                     <span style={{ fontSize: '13px', color: '#059669', fontWeight: 700, whiteSpace: 'nowrap' }}>Open Chat →</span>
                   </div>
 
-                  {studyGroups.length === 0 ? (
+                  {isTeacher ? (
+                    <div style={{ padding: '24px 16px', textAlign: 'center', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', marginTop: '14px' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                        🔒 <strong>Privacy Protection:</strong> Student peer study groups and private chats are strictly confidential to student members. Instructors are restricted from viewing or participating in student peer study groups.
+                      </p>
+                    </div>
+                  ) : studyGroups.length === 0 ? (
                     <div style={{ padding: '30px 20px', textAlign: 'center', color: '#64748b' }}>
                       <Users size={36} style={{ margin: '0 auto 10px auto', color: '#94a3b8', display: 'block' }} />
                       <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: 600, color: 'var(--text-main, #1e293b)' }}>No peer study groups yet</h4>

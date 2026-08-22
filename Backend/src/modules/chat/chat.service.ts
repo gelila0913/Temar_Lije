@@ -817,6 +817,22 @@ export class ChatService {
       }
     }
 
+    // Prohibit teachers from seeing student peer study groups
+    const requestingUser = userUuid ? await this.db.user.findUnique({
+      where: { id: userUuid },
+      select: { id: true, role: true },
+    }).catch(() => null) : null;
+
+    if (requestingUser?.role === 'TEACHER') {
+      allRecords = allRecords.filter((g: any) => {
+        const isClassroomChannel = g.icon === '🏫' ||
+                                  g.name.toLowerCase() === 'general' ||
+                                  g.name.toLowerCase() === 'flutter' ||
+                                  (g.classroomId ? g.id === toUuid(g.classroomId) : false);
+        return isClassroomChannel;
+      });
+    }
+
     // Separate standalone groups from legacy subchannel icons
     const mainGroups: any[] = [];
     const legacyTopicsMap: Record<string, any[]> = {};
@@ -1012,7 +1028,23 @@ export class ChatService {
       return true;
     }
 
-    // It is a study group: ONLY enrolled group members or the creator can view/access
+    // Check if user is a teacher
+    const requestingUser = await this.db.user.findUnique({
+      where: { id: userUuid },
+      select: { id: true, role: true },
+    }).catch(() => null);
+
+    const isClassroomChannel = group.icon === '🏫' ||
+                              group.name.toLowerCase() === 'general' ||
+                              group.name.toLowerCase() === 'flutter' ||
+                              (group.classroomId ? group.id === toUuid(group.classroomId) : false);
+
+    // Teachers are NEVER allowed to access student peer study groups
+    if (requestingUser?.role === 'TEACHER' && !isClassroomChannel) {
+      return false;
+    }
+
+    // It is a study group: ONLY enrolled student members or the creator can view/access
     const isMember = (group.members || []).some((m: any) => m.userId === userUuid) || group.createdById === userUuid;
     return isMember;
   }
